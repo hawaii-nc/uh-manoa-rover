@@ -435,16 +435,9 @@ Two levels. Don't try to learn the whole campus route end-to-end with RL.
 
 ---
 
-## 6. Tech Stack (initial picks)
+## 6. Tech Stack
 
-| Layer | Tools |
-|---|---|
-| Reconstruction | COLMAP / GLOMAP, gsplat / nerfstudio, NVIDIA 3DGRUT, Grounded-SAM 2, OpenMVS / 2DGS for meshes, Blender for cleanup |
-| Sim | NVIDIA Isaac Sim 5.x, Isaac Lab, Omniverse Replicator, OpenUSD |
-| ML | PyTorch, a BEV perception codebase, RL via Isaac Lab (rsl_rl / skrl), W&B |
-| Robot | ROS 2 (Humble/Jazzy), Isaac ROS on Jetson Orin, Nav2 (for baselines and plumbing) |
-| Data | DVC or LakeFS, object storage, Parquet for logs |
-| Maps | OSM, QGIS, Hawaiʻi Statewide GIS data |
+See **[LIBRARIES.md](LIBRARIES.md)** for the full open-source library list for each pipeline stage, with licenses and a starter set per milestone.
 
 ---
 
