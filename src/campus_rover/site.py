@@ -64,6 +64,7 @@ class Site:
     planner: PlannerParams
     schedule: ClassSchedule
     _graph: CampusGraph | None = field(default=None, repr=False)
+    _model: object | None = field(default=None, repr=False)
 
     @property
     def graph_path(self) -> Path:
@@ -84,9 +85,26 @@ class Site:
                     )
                 raise FileNotFoundError(f"walkway graph not found: {self.graph_path}{hint}")
             graph = CampusGraph.load(self.graph_path)
+            model = self.load_model()
+            if model is not None:
+                found, _ = model.resolve_building_landmarks(graph, self.landmarks)
+                graph.landmarks.update(found)  # building footprints beat OSM name matches
+                model.apply_to_graph(graph)
+                zones = self.crowd.setdefault("zones", {}) or {}
+                self.crowd["zones"] = zones
+                for zone, windows in model.crowd_zone_windows().items():
+                    zones.setdefault(zone, []).extend(windows)
             graph.apply_closures(self.closures, self.landmark_nodes(graph))
             self._graph = graph
         return self._graph
+
+    def load_model(self):
+        """Campus map model from sites/<name>/layers.yaml, or None if the site has none."""
+        if self._model is None and (self.root / "layers.yaml").exists():
+            from .campus_model import build_model
+
+            self._model = build_model(self)
+        return self._model
 
     def landmark_nodes(self, graph: CampusGraph) -> dict[str, str]:
         return {key: graph.resolve_landmark(key, spec) for key, spec in self.landmarks.items()}

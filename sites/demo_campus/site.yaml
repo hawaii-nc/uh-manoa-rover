@@ -24,8 +24,9 @@ routes:
   B: {waypoints: [student_center, design], label: Student Center -> Design Building}
   AB: {waypoints: [engineering, student_center, design], label: Full trip A then B}
 
-closures:
-  - {near_landmark: library, radius_m: 40, reason: construction}
+# The library closure comes from the construction layer in layers.yaml.
+# Closures can also be listed here by edge, node, or near_landmark + radius_m.
+closures: []
 
 schedule: schedule.yaml
 

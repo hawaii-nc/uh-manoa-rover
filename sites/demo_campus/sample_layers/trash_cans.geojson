@@ -1,0 +1,51 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     230,
+     22
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     380,
+     22
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     640,
+     -10
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     470,
+     -75
+    ]
+   }
+  }
+ ]
+}

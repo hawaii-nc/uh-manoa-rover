@@ -1,0 +1,28 @@
+# Campus map layers for the demo campus. Synthetic data in local meters, shaped
+# like the UH campus map layers (see sites/uh_manoa/layers.yaml).
+layers:
+  buildings:      {role: building, file: sample_layers/buildings.geojson}
+  construction:   {role: construction, file: sample_layers/construction.geojson, reason: construction}
+  trees:          {role: tree, file: sample_layers/trees.geojson}
+  benches:        {role: prop, prop_class: bench, file: sample_layers/benches.geojson}
+  call_boxes:     {role: prop, prop_class: emergency_call_box, file: sample_layers/call_boxes.geojson}
+  bike_racks:     {role: prop, prop_class: bike_rack, file: sample_layers/bike_racks.geojson}
+  trash_cans:     {role: prop, prop_class: trash_can, file: sample_layers/trash_cans.geojson}
+  entrances:      {role: accessible_entrance, prop_class: automatic_door, file: sample_layers/entrances.geojson}
+  eateries:
+    role: crowd_source
+    file: sample_layers/eateries.geojson
+    zone: eatery
+    radius_m: 60
+    windows:
+      - {days: weekdays, from: "11:15", to: "13:30", density: 12}
+  shuttle_stops:
+    role: crowd_source
+    file: sample_layers/shuttle_stops.geojson
+    zone: shuttle_stop
+    radius_m: 50
+    windows:
+      - {days: weekdays, from: "07:30", to: "09:00", density: 8}
+      - {days: weekdays, from: "16:00", to: "17:30", density: 8}
+  benchmarks:     {role: gcp, file: sample_layers/benchmarks.geojson}
+  parking:        {role: vehicle_spawn, file: sample_layers/parking.geojson}

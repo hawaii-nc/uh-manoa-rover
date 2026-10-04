@@ -1,0 +1,371 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     215,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     230,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     245,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     260,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     275,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     290,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     305,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     320,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     335,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     350,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     365,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     380,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Monkeypod"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     395,
+     48
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Shower tree"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     410,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Banyan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     148.5906621186653,
+     -137.09490495645298
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Coconut palm"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     174.95771996044306,
+     -134.50092567662358
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Banyan"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     206.06836847815782,
+     -140.5091493084946
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Kukui"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     233.431871160971,
+     -141.77003088357924
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Kukui"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     260.8445576743112,
+     -143.17000763422254
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Coconut palm"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     289.3300269057748,
+     -141.75013497769865
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Coconut palm"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     322.4735787544253,
+     -143.07344714466615
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Coconut palm"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     350.61682358894,
+     -145.61991715209533
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     620,
+     60
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     700,
+     40
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     660,
+     120
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -30,
+     60
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     40,
+     -50
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "COMMON_NAME": "Plumeria"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     560,
+     40
+    ]
+   }
+  }
+ ]
+}

@@ -1,4 +1,4 @@
-"""Command line: campus-rover {sites,plan,sweep,import-osm}."""
+"""Command line for the campus-rover pipeline (run `campus-rover --help`)."""
 
 from __future__ import annotations
 
@@ -99,6 +99,96 @@ def cmd_import_osm(args) -> int:  # pragma: no cover - network
     return 0
 
 
+def cmd_scan_saved_page(args) -> int:
+    from .arcgis import scan_text_for_arcgis
+
+    found: dict[str, list[str]] = {"service_urls": [], "item_ids": [], "portals": []}
+    files: list[Path] = []
+    for raw in args.paths:
+        path = Path(raw)
+        files.extend(sorted(p for p in path.rglob("*") if p.is_file()) if path.is_dir() else [path])
+    for path in files:
+        result = scan_text_for_arcgis(path.read_text(encoding="utf-8", errors="replace"))
+        for key, values in result.items():
+            found[key].extend(v for v in values if v not in found[key])
+    print(f"scanned {len(files)} files")
+    for key, title in (
+        ("service_urls", "ArcGIS service/layer URLs"),
+        ("item_ids", "Web map / item ids"),
+        ("portals", "Portals"),
+    ):
+        print(f"\n{title}: {len(found[key])}")
+        for value in found[key]:
+            print(f"  {value}")
+    if found["item_ids"]:
+        print("\nNext: campus-rover discover --webmap <id> [--portal <portal>]")
+    if found["service_urls"]:
+        print("Next: campus-rover discover --url <.../FeatureServer or .../MapServer>")
+    return 0
+
+
+def cmd_discover(args) -> int:  # pragma: no cover - network
+    from .arcgis import list_service_layers, list_webmap_layers
+
+    if args.webmap:
+        layers = list_webmap_layers(args.webmap, portal=args.portal)
+        for layer in layers:
+            print(f"{layer['title']}\n    {layer['url']}")
+    else:
+        for layer in list_service_layers(args.url):
+            print(f"[{layer['id']}] {layer['name']} ({layer['geometryType']})\n    {layer['url']}")
+    return 0
+
+
+def cmd_fetch_layers(args) -> int:  # pragma: no cover - network
+    from .arcgis import query_layer, save_geojson
+    from .campus_model import layer_path, load_layer_specs
+
+    site = load_site(args.site, args.sites_dir)
+    specs = [s for s in load_layer_specs(site) if s.url and (not args.only or s.key in args.only)]
+    if not specs:
+        print("no layers with a `url:` in layers.yaml (see docs/UH_MAP_MODEL.md)")
+        return 1
+    for spec in specs:
+        features = query_layer(spec.url, site.crs, where=spec.where, pause_s=0.5)
+        path = layer_path(site, spec)
+        save_geojson(features, path, site.crs, spec.url)
+        print(f"{spec.key:<28}{len(features):>6} features -> {path}")
+    return 0
+
+
+def cmd_build_model(args) -> int:
+    site = load_site(args.site, args.sites_dir)
+    model = site.load_model()
+    if model is None:
+        print(f"site {site.name!r} has no layers.yaml", file=sys.stderr)
+        return 1
+    try:
+        graph = site.load_graph()
+        landmarks = site.landmark_nodes(graph)
+    except FileNotFoundError as e:
+        if not args.allow_no_graph:
+            raise
+        print(f"warning: {e}\n(continuing without walkways)")
+        graph, landmarks = None, {}
+    print(f"{site.name} map model ({site.crs})")
+    for key, n in model.summary().items():
+        print(f"  {key:<16}{n:>6}")
+    if model.missing_layers:
+        print(f"  not downloaded yet: {', '.join(model.missing_layers)}")
+    if args.usd:
+        from .usd_export import export_usd
+
+        result = export_usd(model, graph, Path(args.usd), site.name, landmarks)
+        print(f"usd: {result['path']} (origin offset {result['origin_offset']})")
+    if args.plot:
+        from .viz import plot_model
+
+        out = plot_model(model, graph, Path(args.plot), f"{site.name}: campus map model", landmarks)
+        print(f"plot: {out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="campus-rover", description=__doc__)
     p.add_argument("--sites-dir", type=Path, default=DEFAULT_SITES_DIR)
@@ -125,6 +215,35 @@ def build_parser() -> argparse.ArgumentParser:
     imp = sub.add_parser("import-osm", help="download the site's walkway graph from OSM")
     imp.add_argument("--site", required=True)
     imp.set_defaults(func=cmd_import_osm)
+
+    scan = sub.add_parser(
+        "scan-saved-page", help="find ArcGIS layer URLs in a saved copy of the map page"
+    )
+    scan.add_argument("paths", nargs="+", help="saved .html file and/or its _files folder")
+    scan.set_defaults(func=cmd_scan_saved_page)
+
+    disc = sub.add_parser("discover", help="list layers of an ArcGIS service or web map")
+    src = disc.add_mutually_exclusive_group(required=True)
+    src.add_argument("--url", help=".../FeatureServer or .../MapServer URL")
+    src.add_argument("--webmap", help="ArcGIS web map item id")
+    disc.add_argument("--portal", default="https://www.arcgis.com")
+    disc.set_defaults(func=cmd_discover)
+
+    fetch = sub.add_parser("fetch-layers", help="download the site's map layers (layers.yaml)")
+    fetch.add_argument("--site", required=True)
+    fetch.add_argument("--only", nargs="*", help="layer keys to fetch")
+    fetch.set_defaults(func=cmd_fetch_layers)
+
+    build = sub.add_parser("build-model", help="build the campus map model; export USD/plot")
+    build.add_argument("--site", required=True)
+    build.add_argument("--usd", help="write an OpenUSD scene for Isaac Sim (.usda/.usd)")
+    build.add_argument("--plot", help="write a top-down PNG of the model")
+    build.add_argument(
+        "--allow-no-graph",
+        action="store_true",
+        help="build even if the walkway graph hasn't been imported yet",
+    )
+    build.set_defaults(func=cmd_build_model)
     return p
 
 

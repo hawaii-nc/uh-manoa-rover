@@ -4,6 +4,7 @@ A camera-only autonomous rover that learns to navigate the University of Hawaiʻ
 
 - **[docs/SCOPE.md](docs/SCOPE.md):** full project scope (phases, mainland proof of concept, data plan, risks)
 - **[docs/LIBRARIES.md](docs/LIBRARIES.md):** open-source libraries for each pipeline stage
+- **[docs/UH_MAP_MODEL.md](docs/UH_MAP_MODEL.md):** turning the UH campus map into the planning model and an Isaac Sim (USD) scene
 
 ## The short version
 
@@ -71,11 +72,27 @@ After the first import:
 - Tag McCarthy Mall and other busy walkways with a `zone`.
 - Replace the placeholder `people_per_change` numbers with estimates from the class schedule.
 
+## Campus map model and Isaac Sim scene
+
+Map layers (buildings, construction, trees, benches, call boxes, entrances, eateries, bus stops, survey benchmarks...) become one georeferenced model. The model closes walkways under construction and adds crowd sources for the planner. It also exports an **OpenUSD scene for Isaac Sim**, with collision and semantic labels.
+
+```bash
+pip install -e ".[dev]"
+campus-rover build-model --site demo_campus --usd out/demo.usda --plot out/model.png
+```
+
+| Map model | USD scene (read back) |
+|---|---|
+| ![model](docs/img/demo_map_model.png) | ![usd](docs/img/demo_usd_preview.png) |
+
+For UH, the layer list from map.hawaii.edu/manoa is already mapped in `sites/uh_manoa/layers.yaml`. See **[docs/UH_MAP_MODEL.md](docs/UH_MAP_MODEL.md)** for how to find the layer URLs and download them.
+
 ### Adding a site
 
-Copy `sites/demo_campus/` and edit three files:
+Copy `sites/demo_campus/` and edit these files:
 - `site.yaml`: landmarks, routes, closures, crowd sources, and planner weights.
 - `schedule.yaml`: class time blocks.
 - `graph.yaml`: the walkway graph. Draw it by hand, or import it with `import-osm`.
+- `layers.yaml` (optional): campus map layers and their roles.
 
 All code is site-agnostic, so the mainland proxy campus and UH run the same pipeline.

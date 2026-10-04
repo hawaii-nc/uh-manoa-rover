@@ -1,0 +1,59 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Engineering east doors"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -10,
+     0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Lecture Hall south doors"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     445,
+     80
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Design west doors"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     810,
+     95
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Student Center north doors"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     540,
+     -15
+    ]
+   }
+  }
+ ]
+}

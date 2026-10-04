@@ -1,0 +1,20 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Food court"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     650,
+     -15
+    ]
+   }
+  }
+ ]
+}

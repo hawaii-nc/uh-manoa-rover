@@ -202,7 +202,7 @@ Every tier shares the **same georeferenced coordinate frame** (lat/long → UTM 
 | Street-level photos | **Mapillary** (CC BY-SA 4.0, free API) and **KartaView**. Check coverage around Holmes Hall, Campus Center, and the Architecture building. If there's enough overlap, run them through Phase 2 for real splats now. They're also good modeling reference. |
 | Building appearance reference | Mapillary, Wikimedia Commons (check each photo's license) |
 | Crowd timing prior | **UH public class schedule** (course availability lists rooms and times per building) → estimate when Holmes Hall, Campus Center, and Architecture let out |
-| Building names, entrances, accessibility, campus features | **UH Mānoa interactive campus map** (map.hawaii.edu/manoa): buildings, parking, accessible parking, bus stops, emergency call boxes, dining, study spaces |
+| Building names, entrances, accessibility, campus features | **UH Mānoa interactive campus map** (map.hawaii.edu/manoa): buildings, parking, accessible parking, bus stops, emergency call boxes, dining, study spaces. Pipeline: [UH_MAP_MODEL.md](UH_MAP_MODEL.md) |
 | Individual trees | **UH Mānoa campus tree map** (about 3,000 mapped trees). Use it for tree positions and species. |
 
 #### Source roles: what each source is used for
@@ -476,6 +476,9 @@ uh-manoa-rover/
 │   ├── crowd.py             # time-dependent crowd prior                             ✅
 │   ├── planner.py           # crowd-aware route planner + explanations               ✅
 │   ├── osm.py               # OpenStreetMap import                                   ✅
+│   ├── arcgis.py            # UH campus map (ArcGIS) layer download                  ✅
+│   ├── campus_model.py      # map layers -> planning model + scene contents          ✅
+│   ├── usd_export.py        # OpenUSD scene for Isaac Sim (collision + semantics)    ✅
 │   ├── viz.py, cli.py       # plots + `campus-rover` command                         ✅
 │   ├── capture/             # frame extraction, GPS sync, face blurring              (M2)
 │   ├── reconstruction/      # SfM, transient masking, splats, mesh, USD export       (M1–M2)

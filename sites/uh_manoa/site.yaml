@@ -17,13 +17,15 @@ graph:
     # Approximate. Tighten it after the first import.
     bbox: [-157.8240, 21.2925, -157.8100, 21.3040]
 
-# Landmarks are matched by OSM name, and the nearest walkway node is used.
-# Check the names against the UH campus map after the first import.
+# Landmarks are matched by building name in the UH campus map's Buildings
+# layer (layers.yaml); the walkway node nearest an accessible entrance, or else
+# the footprint, is used. `osm_name` is the fallback when that layer isn't
+# downloaded yet. Check the names against the UH campus map.
 landmarks:
-  holmes_hall: {osm_name: Holmes Hall, label: Holmes Hall}
-  campus_center: {osm_name: Campus Center, label: Campus Center}
-  architecture: {osm_name: Architecture, label: School of Architecture}
-  hamilton_library: {osm_name: Hamilton Library, label: Hamilton Library}
+  holmes_hall: {building: Holmes Hall, osm_name: Holmes Hall, label: Holmes Hall}
+  campus_center: {building: Campus Center, osm_name: Campus Center, label: Campus Center}
+  architecture: {building: Architecture, osm_name: Architecture, label: School of Architecture}
+  hamilton_library: {building: Hamilton Library, osm_name: Hamilton Library, label: Hamilton Library}
 
 routes:
   A: {waypoints: [holmes_hall, campus_center], label: Holmes Hall -> Campus Center}
@@ -31,7 +33,8 @@ routes:
   AB: {waypoints: [holmes_hall, campus_center, architecture], label: Full trip A then B}
 
 closures:
-  # Construction near Hamilton Library. Adjust the radius once the real extent is known.
+  # Construction near Hamilton Library. Once the UH "Active Constructions" layer
+  # is downloaded (layers.yaml), it closes the exact areas and this can go.
   - {near_landmark: hamilton_library, radius_m: 80, reason: construction}
 
 schedule: schedule.yaml

@@ -43,7 +43,7 @@ def test_stairs_allowed_gives_shortest_path(demo_site):
 
 def test_lunch_detours_route_b(demo_planner):
     lunch = demo_planner.plan(["center", "design"], WeekTime.parse("Tue 12:05"))
-    morning = demo_planner.plan(["center", "design"], WeekTime.parse("Tue 08:00"))
+    morning = demo_planner.plan(["center", "design"], WeekTime.parse("Tue 10:00"))
     assert "c2" in lunch.nodes
     assert "plaza" in morning.nodes
 

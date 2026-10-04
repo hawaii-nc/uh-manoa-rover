@@ -1,0 +1,40 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "PROJECT": "Library renovation"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       240,
+       105
+      ],
+      [
+       360,
+       105
+      ],
+      [
+       360,
+       240
+      ],
+      [
+       240,
+       240
+      ],
+      [
+       240,
+       105
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

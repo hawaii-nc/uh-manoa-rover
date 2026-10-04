@@ -1,0 +1,120 @@
+# UH Mānoa campus map layers (map.hawaii.edu/manoa, "Explore UH Mānoa" panel).
+#
+# Each `url` is an ArcGIS layer endpoint ending in /FeatureServer/<n> or
+# /MapServer/<n>. They're blank until found (see docs/UH_MAP_MODEL.md, "Finding the
+# layer URLs"). Then:
+#   campus-rover fetch-layers --site uh_manoa     # saves to sites/uh_manoa/cache/ (gitignored)
+#   campus-rover build-model  --site uh_manoa --usd out/uh_manoa.usda --plot out/uh.png
+#
+# UH's disclaimer: these layers are approximate and "for visualization purposes only".
+# Use them for layout, names and object placement; use lidar/OSM/your own capture for
+# accurate geometry. Downloaded UH data stays in cache/ and out of git.
+#
+# Crowd `windows` densities (people/100 m) are placeholders to calibrate later.
+
+layers:
+  # --- structure -------------------------------------------------------------
+  buildings:
+    title: Buildings
+    role: building
+    url:
+    default_height_m: 12     # replaced by lidar heights later
+  active_constructions:
+    title: Active Constructions
+    role: construction
+    url:
+    reason: construction
+  staging_areas:
+    title: Staging Areas
+    role: construction
+    url:
+    reason: construction staging
+
+  # --- trees -----------------------------------------------------------------
+  trees:
+    title: Campus Arboretum / Trees
+    role: tree
+    url:
+
+  # --- static props (sim objects + perception classes) ------------------------
+  outdoor_seating:      {title: Outdoor Seating, role: prop, prop_class: bench, url: }
+  emergency_call_boxes: {title: Emergency Call Boxes, role: prop, prop_class: emergency_call_box, url: }
+  bicycle_parking:      {title: Bicycle Parking, role: prop, prop_class: bike_rack, url: }
+  skateboard_parking:   {title: Skateboard Parking, role: prop, prop_class: skateboard_rack, url: }
+  biki_stops:           {title: Biki Bike Share Stops, role: prop, prop_class: bike_share_dock, url: }
+  ev_charging:          {title: EV Charging Stations, role: prop, prop_class: ev_charger, url: }
+  mail_boxes:           {title: Mail Boxes, role: prop, prop_class: mailbox, url: }
+  bulletin_boards:      {title: Community Bulletin Boards, role: prop, prop_class: bulletin_board, url: }
+  recycling:            {title: Recycling, role: prop, prop_class: recycling_bin, url: }
+  refuse:               {title: Refuse, role: prop, prop_class: trash_can, url: }
+  art_pieces:           {title: Art Pieces, role: prop, prop_class: art_piece, url: }
+  # Many of these are indoors; filter with `where:` once the fields are known.
+  vending_machines:     {title: Vending Machines, role: prop, prop_class: vending_machine, url: }
+  water_refill:         {title: Water Refill Stations, role: prop, prop_class: water_refill, url: }
+
+  # --- accessibility: preferred building entrances -----------------------------
+  automatic_doors:      {title: Automatic Doors, role: accessible_entrance, prop_class: automatic_door, url: }
+  elevators:            {title: Elevators, role: accessible_entrance, prop_class: elevator, url: }
+
+  # --- crowd sources ---------------------------------------------------------
+  eateries:
+    title: Eateries
+    role: crowd_source
+    url:
+    zone: eatery
+    radius_m: 50
+    windows:
+      - {days: weekdays, from: "11:00", to: "13:30", density: 12}
+  food_trucks:
+    title: Food Trucks
+    role: crowd_source
+    url:
+    zone: food_truck
+    radius_m: 40
+    windows:
+      - {days: weekdays, from: "10:30", to: "14:00", density: 10}
+  coffee:
+    title: Coffee
+    role: crowd_source
+    url:
+    zone: coffee
+    radius_m: 30
+    windows:
+      - {days: weekdays, from: "07:30", to: "10:00", density: 6}
+  rainbow_shuttle_stops:
+    title: Rainbow Shuttle Stops
+    role: crowd_source
+    url:
+    zone: shuttle_stop
+    radius_m: 30
+    windows:
+      - {days: weekdays, from: "07:30", to: "09:30", density: 6}
+      - {days: weekdays, from: "15:30", to: "17:30", density: 6}
+  thebus_stops:
+    title: TheBus Stops
+    role: crowd_source
+    url:
+    zone: bus_stop
+    radius_m: 30
+    windows:
+      - {days: weekdays, from: "07:00", to: "09:30", density: 8}
+      - {days: weekdays, from: "15:00", to: "18:00", density: 8}
+  forum_areas:
+    title: Designated Campus Forum Areas
+    role: crowd_source
+    url:
+    zone: forum
+    radius_m: 40
+    windows:
+      - {days: weekdays, from: "11:00", to: "13:00", density: 5}
+
+  # --- georeferencing --------------------------------------------------------
+  survey_benchmarks:
+    title: Ground Survey Benchmarks
+    role: gcp
+    url:
+
+  # --- vehicles (cars/carts in sim) ----------------------------------------------
+  visitor_parking:      {title: Visitor Parking Stalls, role: vehicle_spawn, url: }
+  accessible_parking:   {title: Accessible Parking Stalls, role: vehicle_spawn, url: }
+  parking_structures:   {title: Zone 20 Parking Structures, role: vehicle_spawn, url: }

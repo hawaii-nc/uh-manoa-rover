@@ -1,0 +1,223 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Engineering Hall",
+    "FLOORS": 4
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -70,
+       -35
+      ],
+      [
+       -10,
+       -35
+      ],
+      [
+       -10,
+       35
+      ],
+      [
+       -70,
+       35
+      ],
+      [
+       -70,
+       -35
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Lecture Hall",
+    "FLOORS": 3
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       410,
+       80
+      ],
+      [
+       480,
+       80
+      ],
+      [
+       480,
+       130
+      ],
+      [
+       445,
+       150
+      ],
+      [
+       410,
+       130
+      ],
+      [
+       410,
+       80
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Student Center",
+    "FLOORS": 3
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       520,
+       -70
+      ],
+      [
+       600,
+       -70
+      ],
+      [
+       600,
+       -15
+      ],
+      [
+       520,
+       -15
+      ],
+      [
+       520,
+       -70
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Design Building",
+    "FLOORS": 2
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       810,
+       70
+      ],
+      [
+       870,
+       70
+      ],
+      [
+       870,
+       140
+      ],
+      [
+       840,
+       140
+      ],
+      [
+       840,
+       110
+      ],
+      [
+       810,
+       110
+      ],
+      [
+       810,
+       70
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Library",
+    "FLOORS": 5
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       260,
+       170
+      ],
+      [
+       340,
+       170
+      ],
+      [
+       340,
+       230
+      ],
+      [
+       260,
+       230
+      ],
+      [
+       260,
+       170
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Science Hall",
+    "FLOORS": 4
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       180,
+       -230
+      ],
+      [
+       300,
+       -230
+      ],
+      [
+       300,
+       -170
+      ],
+      [
+       180,
+       -170
+      ],
+      [
+       180,
+       -230
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

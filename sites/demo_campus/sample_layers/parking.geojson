@@ -1,0 +1,40 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "Parking Lot A"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       650,
+       -160
+      ],
+      [
+       780,
+       -160
+      ],
+      [
+       780,
+       -80
+      ],
+      [
+       650,
+       -80
+      ],
+      [
+       650,
+       -160
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

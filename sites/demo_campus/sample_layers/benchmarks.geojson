@@ -1,0 +1,46 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "BM-1"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     0,
+     -60
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "BM-2"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     500,
+     -100
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "NAME": "BM-3"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     800,
+     180
+    ]
+   }
+  }
+ ]
+}

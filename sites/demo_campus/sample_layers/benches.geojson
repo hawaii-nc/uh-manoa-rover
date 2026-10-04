@@ -1,0 +1,62 @@
+{
+ "type": "FeatureCollection",
+ "crs_note": "local",
+ "source": "synthetic demo data",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     240,
+     38
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     300,
+     38
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     360,
+     38
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     660,
+     12
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {},
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     700,
+     -12
+    ]
+   }
+  }
+ ]
+}

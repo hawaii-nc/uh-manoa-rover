@@ -1,6 +1,7 @@
 """Time-dependent crowd prior: expected pedestrian density on each walkway.
 
 density(edge, t) = zone baseline(t)
+                 + nearby crowd-source windows(t)   (eateries, bus stops, ... from map layers)
                  + sum over buildings of
                      people_per_change * surge(t) * density_per_person * exp(-d / decay_m)
 
@@ -120,6 +121,9 @@ class CrowdModel:
         """Expected people per 100 m on edge (u, v) at time t."""
         data = self.graph.g.edges[u, v]
         total = self.zone_density(data.get("zone"), t)
+        # Nearby crowd sources from map layers (eateries, bus stops, ...).
+        for poi_zone in data.get("pois", ()):
+            total += self.zone_density(poi_zone, t)
         surge = self.schedule.surge(t)
         if surge > 0:
             for b, w in zip(self.buildings, self._proximity[_key(u, v)], strict=True):
