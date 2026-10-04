@@ -459,30 +459,33 @@ See **[LIBRARIES.md](LIBRARIES.md)** for the full open-source library list for e
 
 ---
 
-## 8. Proposed Repository Layout
+## 8. Repository Layout
+
+Python code lives in one package, `src/campus_rover/`, with a module per pipeline stage. Site data lives in `sites/`. ✅ = exists now.
 
 ```
 uh-manoa-rover/
-├── docs/                    # scope, design docs, capture protocol, test reports
-├── sites/                   # one folder per site; all code reads site.yaml
-│   ├── proxy_<name>/        # mainland stand-in campus (Phase M)
-│   └── uh_manoa/            # UH layout now, UH photos when back on campus
-├── capture/                 # capture planning, GCP management, ingest + privacy blurring
-├── reconstruction/          # SfM, transient masking, 3DGS training, mesh extraction, USD export
-├── maps/                    # campus graph (OSM + UH), semantics, crowd priors, schedules
-├── sim/
-│   ├── assets/              # rover USD, agents, clutter (large files via LFS/DVC)
-│   ├── scenarios/           # quiet / class-change / rain / event / edge-case configs
-│   ├── agents/              # pedestrian, bike, cart, animal behaviors
-│   └── replicator/          # synthetic data generation
-├── perception/              # BEV models, training, eval
-├── prediction/              # trajectory + crowd density models
-├── planning/
-│   ├── route/               # time-dependent graph planner
-│   ├── local/               # RL policy (Isaac Lab tasks) + classical baseline
-│   └── safety/              # safety supervisor
-├── rover/                   # ROS 2 packages, drivers, calibration, on-board deployment
-└── tools/                   # shared utilities, scripts
+├── docs/                    # scope, library guide, design docs, test reports       ✅
+├── sites/                   # one folder per site; all code reads site.yaml          ✅
+│   ├── demo_campus/         # synthetic test campus for the planner                  ✅
+│   ├── uh_manoa/            # UH routes, schedule, closures; graph from OSM import   ✅
+│   └── proxy_<name>/        # mainland stand-in campus (Phase M)
+├── src/campus_rover/
+│   ├── site.py, graph.py    # site config + walkway graph                            ✅
+│   ├── schedule.py          # week time + class-change surge                         ✅
+│   ├── crowd.py             # time-dependent crowd prior                             ✅
+│   ├── planner.py           # crowd-aware route planner + explanations               ✅
+│   ├── osm.py               # OpenStreetMap import                                   ✅
+│   ├── viz.py, cli.py       # plots + `campus-rover` command                         ✅
+│   ├── capture/             # frame extraction, GPS sync, face blurring              (M2)
+│   ├── reconstruction/      # SfM, transient masking, splats, mesh, USD export       (M1–M2)
+│   ├── sim/                 # Isaac Sim scenarios, agents, replicator                (M4)
+│   ├── perception/          # BEV models, training, eval                             (M5)
+│   ├── prediction/          # trajectory + crowd density models                      (M5)
+│   ├── policy/              # Isaac Lab RL tasks + classical baseline                (M6)
+│   └── safety/              # safety supervisor                                      (M6)
+├── rover/                   # ROS 2 packages, drivers, calibration                   (M7)
+└── tests/                   # pytest suite                                           ✅
 ```
 
 ---

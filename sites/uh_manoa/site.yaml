@@ -1,0 +1,58 @@
+# UH Mānoa. The walkway graph is imported from OpenStreetMap:
+#   campus-rover import-osm --site uh_manoa
+# That needs network access to overpass-api.de and `pip install -e ".[osm]"`.
+# The import writes graph.osm.yaml next to this file, using the same format
+# as sites/demo_campus/graph.yaml.
+
+name: uh_manoa
+description: University of Hawaiʻi at Mānoa (MVP routes A and B).
+crs: EPSG:32604          # UTM zone 4N, meters
+origin: {lat: 21.2990, lon: -157.8170}
+
+graph:
+  source: file
+  path: graph.osm.yaml
+  osm:
+    # Generous bounding box around campus (west, south, east, north).
+    # Approximate. Tighten it after the first import.
+    bbox: [-157.8240, 21.2925, -157.8100, 21.3040]
+
+# Landmarks are matched by OSM name, and the nearest walkway node is used.
+# Check the names against the UH campus map after the first import.
+landmarks:
+  holmes_hall: {osm_name: Holmes Hall, label: Holmes Hall}
+  campus_center: {osm_name: Campus Center, label: Campus Center}
+  architecture: {osm_name: Architecture, label: School of Architecture}
+  hamilton_library: {osm_name: Hamilton Library, label: Hamilton Library}
+
+routes:
+  A: {waypoints: [holmes_hall, campus_center], label: Holmes Hall -> Campus Center}
+  B: {waypoints: [campus_center, architecture], label: Campus Center -> Architecture}
+  AB: {waypoints: [holmes_hall, campus_center, architecture], label: Full trip A then B}
+
+closures:
+  # Construction near Hamilton Library. Adjust the radius once the real extent is known.
+  - {near_landmark: hamilton_library, radius_m: 80, reason: construction}
+
+schedule: schedule.yaml
+
+crowd:
+  decay_m: 120
+  density_per_person: 0.1
+  # Placeholder head-counts. Estimate them from the public class schedule
+  # (rooms x enrollment per time block), then calibrate with real counts.
+  buildings:
+    holmes_hall: {people_per_change: 300}
+    campus_center: {people_per_change: 150}
+    architecture: {people_per_change: 100}
+  zones: {}               # e.g. tag McCarthy Mall edges with a zone after import
+
+planner:
+  speed_mps: 1.2
+  max_slope: 0.083
+  allow_stairs: false
+  weights:
+    distance: 1.0
+    crowd: 0.05
+    complexity: 0.3
+    slope: 0.5

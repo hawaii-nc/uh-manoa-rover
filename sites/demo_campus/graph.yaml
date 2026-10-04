@@ -1,0 +1,45 @@
+# Walkway graph. Nodes: local x/y in meters. Edge length defaults to the
+# straight-line distance between its nodes.
+# kind: walkway | stairs | ramp | crosswalk
+nodes:
+  eng:    {xy: [0, 0],      label: Engineering Hall}
+  j1:     {xy: [100, 0]}
+  mall_w: {xy: [200, 30]}
+  mall_e: {xy: [400, 30]}
+  lect:   {xy: [430, 70],   label: Lecture Hall}
+  st:     {xy: [300, 0]}
+  s1:     {xy: [150, -120]}
+  s2:     {xy: [350, -130]}
+  s3:     {xy: [460, -80]}
+  lib:    {xy: [300, 150],  label: Library}
+  center: {xy: [500, 0],    label: Student Center}
+  plaza:  {xy: [650, 0]}
+  c2:     {xy: [600, 150]}
+  design: {xy: [800, 100],  label: Design Building}
+
+edges:
+  - {u: eng, v: j1, zone: east_path}
+  # Route A option 1: the mall (short, busy at class change)
+  - {u: j1, v: mall_w, zone: mall, complexity: 0.4, name: Mall west}
+  - {u: mall_w, v: mall_e, zone: mall, complexity: 0.6, name: Central Mall}
+  - {u: mall_e, v: center, zone: mall, complexity: 0.4, name: Mall east}
+  - {u: mall_e, v: lect, zone: mall, name: Lecture Hall walk}
+  # Route A option 2: stairs shortcut (shortest, but the rover can't do stairs)
+  - {u: j1, v: st, kind: stairs, name: Stair shortcut}
+  - {u: st, v: center, kind: stairs, name: Stair shortcut}
+  # Route A option 3: quiet south path (longer, calm)
+  - {u: j1, v: s1, zone: south_path, name: South path}
+  - {u: s1, v: s2, zone: south_path, name: South path}
+  - {u: s2, v: s3, zone: south_path, slope: 0.04, name: South ramp}
+  - {u: s3, v: center, zone: south_path, name: South path}
+  # Route A option 4: past the library (closed for construction)
+  - {u: j1, v: lib, name: Library walk}
+  - {u: lib, v: center, name: Library walk}
+  # Route B option 1: food court plaza (busy at lunch)
+  - {u: center, v: plaza, zone: food, complexity: 0.5, name: Food court}
+  - {u: plaza, v: design, zone: food, complexity: 0.3, name: Food court}
+  # Route B option 2: upper path with a gentle ramp
+  - {u: center, v: c2, zone: upper_path, name: Upper path}
+  - {u: c2, v: design, zone: upper_path, kind: ramp, slope: 0.06, name: Upper ramp}
+  # Route B option 3: steep hill path (too steep for the rover)
+  - {u: center, v: design, zone: hill, slope: 0.12, name: Hill path}

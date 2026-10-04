@@ -1,0 +1,8 @@
+# Class time blocks. Same format as sites/uh_manoa/schedule.yaml.
+blocks:
+  - days: [Mon, Wed, Fri]
+    starts: ["07:30", "08:30", "09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30"]
+    duration_min: 50
+  - days: [Tue, Thu]
+    starts: ["07:30", "09:00", "10:30", "12:00", "13:30", "15:00"]
+    duration_min: 75

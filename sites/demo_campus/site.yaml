@@ -1,0 +1,54 @@
+# Demo campus: a small, made-up campus that exercises every planner feature
+# (crowded mall vs. quiet detour, stairs shortcut, construction closure,
+# lunch-time food court, steep hill path). Coordinates are local meters.
+# Its shape mirrors the UH MVP: Route A (Engineering -> Student Center) and
+# Route B (Student Center -> Design Building).
+
+name: demo_campus
+description: Synthetic test campus for the crowd-aware route planner.
+crs: local
+
+graph:
+  source: file
+  path: graph.yaml
+
+landmarks:
+  engineering: {node: eng, label: Engineering Hall}
+  student_center: {node: center, label: Student Center}
+  design: {node: design, label: Design Building}
+  library: {node: lib, label: Library}
+  lecture_hall: {node: lect, label: Lecture Hall}
+
+routes:
+  A: {waypoints: [engineering, student_center], label: Engineering -> Student Center}
+  B: {waypoints: [student_center, design], label: Student Center -> Design Building}
+  AB: {waypoints: [engineering, student_center, design], label: Full trip A then B}
+
+closures:
+  - {near_landmark: library, radius_m: 40, reason: construction}
+
+schedule: schedule.yaml
+
+crowd:
+  decay_m: 120            # how far a building's class-change crowd spreads
+  density_per_person: 0.1 # people/100 m added per person released, at the door
+  buildings:
+    engineering: {people_per_change: 250}
+    lecture_hall: {people_per_change: 400}
+    design: {people_per_change: 120}
+  zones:
+    mall:
+      - {days: weekdays, from: "08:00", to: "17:00", density: 4}
+    food:
+      - {days: weekdays, from: "11:15", to: "13:30", density: 30}
+      - {days: weekdays, from: "08:00", to: "17:00", density: 3}
+
+planner:
+  speed_mps: 1.2
+  max_slope: 0.083        # ADA ramp limit (1:12); steeper edges are impassable
+  allow_stairs: false
+  weights:
+    distance: 1.0
+    crowd: 0.05           # per (person/100 m) per meter
+    complexity: 0.3
+    slope: 0.5
