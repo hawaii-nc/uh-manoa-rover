@@ -138,15 +138,39 @@ Every tier shares the **same georeferenced coordinate frame** (lat/long → UTM 
 | Street-level photos | **Mapillary** (CC BY-SA 4.0, free API) and **KartaView**. Check coverage around Holmes Hall, Campus Center, and the Architecture building. If there's enough overlap, run them through Phase 2 for real splats now. They're also good modeling reference. |
 | Building appearance reference | Mapillary, Wikimedia Commons (check each photo's license) |
 | Crowd timing prior | **UH public class schedule** (course availability lists rooms and times per building) → estimate when Holmes Hall, Campus Center, and Architecture let out |
+| Building names, entrances, accessibility, campus features | **UH Mānoa interactive campus map** (map.hawaii.edu/manoa): buildings, parking, accessible parking, bus stops, emergency call boxes, dining, study spaces |
+| Individual trees | **UH Mānoa campus tree map** (about 3,000 mapped trees). Use it for tree positions and species. |
+
+#### Source roles: what each source is used for
+
+Every source has one job. Pixels from a source only go into the twin or the training data when its license allows that.
+
+| Source | Role | Pixels go into the twin / training? |
+|---|---|---|
+| **UH campus map** | **Master reference for the map layer**: building names and footprints, entrances, accessible routes, POIs. These become the labels on the route graph. | No. It's used as a reference while you hand-build the route graph. Ask UH Campus Environments whether the underlying GIS layers (shapefiles/GeoJSON) can be shared; that would save a lot of manual work. Don't bulk-scrape its map tiles. |
+| **UH tree map** | Tree positions and species | No. Use it as reference to place tree assets. |
+| **Lidar (USGS/NOAA)** | 3D shape: terrain, slopes, building heights, tree canopy | ✅ Yes (public domain) |
+| **OpenStreetMap** | Walkway, stairs, and crosswalk geometry | ✅ Yes (ODbL, with attribution) |
+| **Mapillary / KartaView** | Real street-level imagery for splats and textures | ✅ Yes (CC BY-SA, with attribution) |
+| **CC-licensed web photos** (Wikimedia Commons, Flickr CC-BY/CC0) | Extra real views of landmark buildings | ✅ Yes, with attribution |
+| **Other web photos** (news, blogs, social media, all-rights-reserved) | **Look-only reference** while modeling (colors, materials, details) | ❌ No. The photographer owns the copyright. |
+| **Google Street View** | **Manual visual validation**: a person compares the sim view with Street View side by side in a browser | ❌ No downloading, saving, automated comparison, or 3D extraction (same terms as §3a) |
+| **Friend / own footage** | Photoreal splats of Routes A and B; real perception data | ✅ Yes (you own it) |
+
+**Why "splice web photos together" only goes so far:** reconstructing from internet photos works for famous landmarks, which have hundreds of tourist photos from every angle (this is how NeRF-W / Photo Tourism work). Campus walkways at rover height have very few photos, and they're shot with different cameras, in different years and light, and with different construction states. The result is patchy, mismatched splats. Use web photos for landmark facades (Hawaiʻi Hall, Bachman Hall, Kennedy Theatre, Campus Center) and as modeling reference. The walkways themselves need continuous video (Mapillary sequences, a friend's footage, or your own).
+
+**Where the perception *training data* really comes from:** mostly **sim renders**, which are labeled automatically (Phase 3). Add public driving and pedestrian datasets for pretraining, checking each license, since several are non-commercial only. Real footage from the actual camera rig comes last. Web photos without labels add little to perception training.
+
 
 **Tier 1 build steps:**
 
-1. Download lidar for the campus tile → make a ground DEM (PDAL / CloudCompare) → terrain mesh.
-2. Import OSM + DEM into **Blender** with the **BlenderGIS** add-on → extrude buildings to their lidar heights.
-3. Lay out walkways, stairs, and curbs from OSM, and correct shapes against the lidar ground and Mapillary photos. Model the **Route A and B corridors in detail**; the rest of campus stays rough.
-4. Place trees from lidar vegetation points using generic tropical tree assets (monkeypod, palms, shower trees).
-5. Apply PBR materials (concrete, asphalt, grass, lava-rock walls) and **randomize them heavily**. A geometrically accurate world with randomized looks is enough for route planning, RL policy training, and a decent first perception model.
-6. Export OpenUSD → Isaac Sim, with semantic labels on every surface (walkway, grass, stairs...).
+1. Trace the route graph (walkways, entrances, building names) on top of the **UH campus map** and OSM. Mark construction zones, such as the area near Hamilton Library, as closed edges.
+2. Download lidar for the campus tile → make a ground DEM (PDAL / CloudCompare) → terrain mesh.
+3. Import OSM + DEM into **Blender** with the **BlenderGIS** add-on → extrude buildings to their lidar heights.
+4. Lay out walkways, stairs, and curbs from OSM, and correct shapes against the lidar ground and Mapillary photos. **Check by eye against Street View.** Model the **Route A and B corridors in detail**; the rest of campus stays rough.
+5. Place trees from lidar vegetation points and the **UH tree map** using generic tropical tree assets (monkeypod, palms, shower trees).
+6. Apply PBR materials (concrete, asphalt, grass, lava-rock walls) and **randomize them heavily**. A geometrically accurate world with randomized looks is enough for route planning, RL policy training, and a decent first perception model.
+7. Export OpenUSD → Isaac Sim, with semantic labels on every surface (walkway, grass, stairs...).
 
 **What Tier 1 is and isn't good enough for:**
 
