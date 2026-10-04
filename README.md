@@ -6,7 +6,7 @@ The full project scope (phases, architecture, deliverables, risks, and open deci
 
 ## The short version
 
-1. **Capture**: photograph and video the campus, then georeference everything.
+1. **Data**: build a 3D campus from open lidar, GIS, OSM, and Mapillary now; upgrade it with phone footage later.
 2. **Reconstruct**: build a clean 3D Gaussian-splat and mesh twin with people, cars, and animals removed.
 3. **Simulate**: load the twin into Isaac Sim and add pedestrians, bikes, carts, cars, and the campus chickens and cats.
 4. **Learn**: train camera-only perception, prediction, and crowd-aware navigation.

@@ -1,6 +1,6 @@
 # Project Scope: UH Mānoa Campus Navigation Rover
 
-**Status:** Draft v0.1 · **Owner:** Nathan Chong · **Last updated:** 2026-10-04
+**Status:** Draft v0.2 · **Owner:** Nathan Chong · **Last updated:** 2026-10-04
 
 ---
 
@@ -28,8 +28,8 @@ All learning happens first in a **photorealistic digital twin of the campus in N
 
 ```
  ┌──────────────── DATA ────────────────┐   ┌────────────── SIMULATION ──────────────┐
- │ Own capture (phone/360 cam/drone*)   │   │ Isaac Sim + Isaac Lab                  │
- │ Reference: Google 3D Tiles, OSM,     │──▶│  • Static twin: Gaussian splats (look) │
+ │ Open data now; own capture later     │   │ Isaac Sim + Isaac Lab                  │
+ │ Lidar, OSM, Mapillary, GIS,          │──▶│  • Static twin: Gaussian splats (look) │
  │   UH maps, GIS, class schedules      │   │    + mesh (collision, semantics)       │
  │ Transient removal (people/cars/etc.) │   │  • Dynamic agents: people, bikes,      │
  │ Georeferenced 3DGS + mesh per zone   │   │    carts, cars, chickens, cats         │
@@ -41,7 +41,7 @@ All learning happens first in a **photorealistic digital twin of the campus in N
  ┌──────────────────────────── AUTONOMY STACK (on rover) ────────▼───────────────────┐
  │ Cameras ─▶ Perception (BEV occupancy, drivable surface, agents, semantics)        │
  │         ─▶ Prediction (agent trajectories, crowd density)                         │
- │         ─▶ Localization (visual + map; GNSS/IMU/wheel odom as aids — see §9)      │
+ │         ─▶ Localization (visual + map; old-phone GPS/IMU + wheel odom as aids)   │
  │         ─▶ Route planner (time-dependent graph: distance + crowd + difficulty)    │
  │         ─▶ Local planner / learned policy (RL in Isaac Lab) ─▶ Safety supervisor  │
  │         ─▶ Motor control                                                          │
@@ -58,14 +58,13 @@ Each phase has an **exit criterion**. Don't start the next phase until it's met.
 
 | Item | Detail |
 |---|---|
-| Permissions | Get written OK from UH (Facilities / Campus Security / your department) for photo/video capture, any drone flights, and eventually rover testing. Ask whether UH IRB or a privacy review applies to recording people. |
-| Pick the MVP route | One short, well-defined corridor, for example **Hamilton Library ↔ Campus Center along McCarthy Mall**. It is busy at class changes, has an obvious quieter alternative, and has mixed surfaces. Expand later. |
+| MVP routes (decided) | **Route A: Holmes Hall → Campus Center**, then **Route B: Campus Center → School of Architecture building**. Hamilton Library is avoided because of nearby construction. Together these two legs are the first "across campus" trip; expand from there. |
 | Compute | Isaac Sim needs an NVIDIA RTX GPU (16 GB+ VRAM recommended; 24 GB+ is comfortable for splats plus many agents). Splat training also wants 24 GB. Budget for a local RTX workstation or cloud GPUs. |
 | Rover platform decision | Buy or build: an off-the-shelf base (e.g., AgileX Scout Mini, Clearpath Jackal) or a custom 4-wheel skid-steer. On-board compute: NVIDIA Jetson Orin. It needs to handle campus slopes and wet surfaces. |
 | Camera rig spec | Fix this early, because sim and real must match exactly: number of cameras, FOV, resolution, mounting height and angles. Starting point: **6–8 cameras** (front wide + front narrow, 2 sides, 2 rear-quarter, rear), global-shutter or low-rolling-shutter, HDR for harsh Hawaiʻi sun and shadow. |
 | Repo/tooling | Repo layout (§8), experiment tracking (W&B or MLflow), data versioning (DVC or similar), storage plan (raw capture is **TBs**). |
 
-**Exit:** permissions in hand, MVP route chosen, camera rig and rover spec frozen at v1, GPU available.
+**Exit:** camera rig and rover spec frozen at v1, GPU available.
 
 ---
 
@@ -75,13 +74,14 @@ Each phase has an **exit criterion**. Don't start the next phase until it's met.
 
 | Source | Use | Notes / constraints |
 |---|---|---|
-| **Your own capture** (phone, 360° camera such as Insta360, mirrorless camera, optional drone) | **Primary source for the reconstruction** | Best quality, and you own the data. Capture at ground level along every walkway, plus overlapping passes at several heights. |
-| **Google Photorealistic 3D Tiles / Maps / Street View** | **Reference only**: layout, georeferencing sanity checks, planning capture routes | ⚠️ Google Maps Platform terms restrict caching, extracting, or creating derivative datasets from their content, and restrict using it for ML training. Don't build the training twin from scraped Google imagery. Read the current Terms of Service. If you want to use it, ask Google or use their sanctioned APIs within terms. |
+| **Open data, available now** (lidar, building footprints, OSM, Mapillary) | **Primary source for the v1 twin** while you are off campus | See §3a. Open licenses let you build and keep a 3D campus legally. |
+| **Your own capture later** (old phone, optional 360° camera) | **Photoreal upgrade** of Routes A and B when you or a friend can be on campus | Best quality, and you own the data. Walk every walkway at rover height. |
+| **Google Photorealistic 3D Tiles (via Cesium)** | **Live preview and layout reference only**, never baked into the training twin | ⚠️ See §3a. Extracting or saving Google's 3D content to build your own world is against the Google Maps Platform terms. |
 | **OpenStreetMap** | Walkway graph, building footprints, crosswalks, stairs tags | ODbL license. Good starting point for the route graph. |
 | **Hawaiʻi Statewide GIS / USGS lidar** | Terrain elevation, slopes, georeferencing | Public data, useful for the ground mesh and slope costs. |
 | **UH campus maps, accessibility (ADA) maps** | Ramps, elevators, accessible routes | The rover has accessibility needs similar to a wheelchair. ADA routes are a ready-made traversability prior. |
 | **UH class schedule** (time blocks such as MWF / TR) | Crowd model prior: when and where people flood the walkways | Class-change peaks are the main driver of crowding. |
-| **Your own crowd counts** | Ground truth for the crowd model | Time-stamped video of key walkways at many times and days, used to count people per zone. Only aggregate counts are stored (see Privacy). |
+| **Your own crowd counts** (later, Tier 4) | Ground truth for the crowd model | Time-stamped video of key walkways at many times and days, used to count people per zone. Until then, the class-schedule prior stands in. Only aggregate counts are stored. |
 
 **Capture protocol:**
 
@@ -90,17 +90,117 @@ Each phase has an **exit criterion**. Don't start the next phase until it's met.
 - Shoot at **rover camera height** as well as human height. The twin must look right from about 0.5–1 m off the ground.
 - Record **GNSS tags and ground control points** (surveyed or RTK-GPS markers) so every zone lands in one shared campus coordinate frame.
 - Capture in **overlapping zones** of roughly 100–200 m. The whole campus (~320 acres) is too big for one reconstruction.
-- **Drone (optional):** UH Mānoa is near Honolulu airport (HNL) airspace. You need an FAA Part 107 certificate, LAANC authorization, and UH permission. Treat this as a nice-to-have, not something to depend on.
+- **Drone (optional):** UH Mānoa is near Honolulu airport (HNL) airspace. You need an FAA Part 107 certificate and LAANC authorization. Treat this as a nice-to-have, not something to depend on.
 
 **Privacy:** blur faces and license plates in stored raw data. Never ship identifiable people into the twin (Phase 2 removes them anyway). Keep only aggregate crowd statistics.
 
-**Exit:** the MVP zone is fully captured with GCPs, plus at least 2 weeks of crowd-count samples on the MVP route.
+**Exit (off-campus):** Tier 1 sources downloaded for Routes A and B, Mapillary coverage checked, crowd prior built from the class schedule.
+**Exit (on-campus, later):** Routes A and B captured with GPS tags, plus at least 2 weeks of crowd-count samples.
+
+---
+
+---
+
+### 3a. Off-Campus Data Plan (how to build the twin without being on campus)
+
+#### Can you build the 3D world from Google Maps 3D?
+
+**Not as a saved, editable world you train in.** The rule doesn't depend on what you train. The Google Maps Platform Terms of Service separately forbid:
+
+- **scraping or exporting** the content (downloading the 3D tiles or images in bulk),
+- **caching** it beyond short, limited periods, and
+- **creating content from it.** The terms specifically name tracing and building 3D models from Google's content.
+
+Extracting Google's photorealistic 3D tiles and turning them into a USD scene for Isaac Sim is "creating content from Google Maps Content," even if the model never sees a Google image directly. Separately, the terms restrict using the content to train machine-learning models, and camera images rendered from Google's mesh would count. *(I'm not a lawyer. Read the current Terms of Service and the Map Tiles API policies yourself.)*
+
+**What is allowed:** streaming the tiles **live** through the official API with Google's attribution showing. **Cesium for Omniverse** does this inside Isaac Sim. That's fine for looking at campus, checking your layout, and debugging routes. It is not fine for exporting, saving, or training perception on the renders.
+
+**It also wouldn't do the job well.** Google's 3D tiles are built mostly from aerial imagery. At a sidewalk robot's 0.5–1 m camera height, walls melt, trees turn into blobs, and handrails and curbs disappear. People and cars are baked into the mesh with no way to cleanly remove them. So even ignoring the rules, it doesn't produce the clean, ground-level environment you want.
+
+#### What to do instead: a four-tier plan
+
+| Tier | When | What you get | Sources | Cost |
+|---|---|---|---|---|
+| **1. Open-data geometric twin** | **Now, from home** | An accurate 3D campus (terrain, buildings, walkways, stairs, trees) with generic but realistic textures | See below | Free |
+| **2. Live Google preview** | Now | A visual check that Tier 1 matches reality, and route debugging | Cesium for Omniverse + Google Map Tiles API (free tier) | Free tier |
+| **3. Remote capture** | As soon as someone can walk the routes | Real photos and video of Routes A and B, turned into splats | A friend or classmate with a phone (protocol below) | Free |
+| **4. Your own capture** | When you're back on campus | Full photoreal splat upgrade, crowd counts, real rover data | Old phone (+ optional cheap 360° camera) | ~Free |
+
+Every tier shares the **same georeferenced coordinate frame** (lat/long → UTM 4N). Later photoreal splats drop onto the Tier 1 world without redoing anything.
+
+**Tier 1 sources (all open-licensed):**
+
+| Need | Source |
+|---|---|
+| Terrain + building + tree shapes | **Oʻahu airborne lidar**: USGS 3DEP / NOAA Digital Coast, downloadable through **OpenTopography**. The point cloud is classified into ground, building, and vegetation, so you get exact slopes, building masses, and tree positions. |
+| Building footprints and heights | **OpenStreetMap**, **City & County of Honolulu open GIS data**, **Hawaiʻi Statewide GIS Program** |
+| Walkways, stairs, ramps, crosswalks | **OpenStreetMap** (`highway=footway`, `steps`, `crossing`, `incline` tags). Fix missing paths on Routes A and B yourself in the iD/JOSM editor, which also helps everyone else. |
+| Street-level photos | **Mapillary** (CC BY-SA 4.0, free API) and **KartaView**. Check coverage around Holmes Hall, Campus Center, and the Architecture building. If there's enough overlap, run them through Phase 2 for real splats now. They're also good modeling reference. |
+| Building appearance reference | Mapillary, Wikimedia Commons (check each photo's license) |
+| Crowd timing prior | **UH public class schedule** (course availability lists rooms and times per building) → estimate when Holmes Hall, Campus Center, and Architecture let out |
+
+**Tier 1 build steps:**
+
+1. Download lidar for the campus tile → make a ground DEM (PDAL / CloudCompare) → terrain mesh.
+2. Import OSM + DEM into **Blender** with the **BlenderGIS** add-on → extrude buildings to their lidar heights.
+3. Lay out walkways, stairs, and curbs from OSM, and correct shapes against the lidar ground and Mapillary photos. Model the **Route A and B corridors in detail**; the rest of campus stays rough.
+4. Place trees from lidar vegetation points using generic tropical tree assets (monkeypod, palms, shower trees).
+5. Apply PBR materials (concrete, asphalt, grass, lava-rock walls) and **randomize them heavily**. A geometrically accurate world with randomized looks is enough for route planning, RL policy training, and a decent first perception model.
+6. Export OpenUSD → Isaac Sim, with semantic labels on every surface (walkway, grass, stairs...).
+
+**What Tier 1 is and isn't good enough for:**
+
+| Component | Tier 1 enough? |
+|---|---|
+| Route planner (Holmes → Campus Center → Architecture, crowd-aware) | ✅ Yes |
+| RL local navigation policy (on perception outputs) | ✅ Yes |
+| Dynamic agents, crowd scenarios, edge cases | ✅ Yes |
+| First perception models (with domain randomization) | 🟡 Workable; real images later close the gap |
+| Final perception accuracy / visual localization | ❌ Needs Tier 3/4 photoreal data |
+
+**Tier 3 capture protocol (for a friend):** walk each route at a slow, steady pace, holding the phone at **hip height** (~0.7 m, about rover camera height) and pointed forward. Record 4K/30 fps video with the main lens, then walk the same route back. Do a second pass at chest height. Go early morning or on a weekend so fewer people are around, and overcast light is best. Keep location services on so the video has GPS tags. That's roughly 20–30 minutes of work per route. Scaniverse (free) can also make quick splats on the phone for a preview.
+
+### 3b. Budget GPS and Sensors (old phone, no SIM)
+
+**Yes, an old phone without a SIM gets GPS.** GPS signals come straight from satellites, and the SIM only helps with *assisted* GPS, which makes the first fix faster.
+
+- **Faster fixes without a SIM:** connect the phone to Wi-Fi or your main phone's hotspot once per session so it downloads assistance data. Otherwise, leave it under open sky for a few minutes on a cold start.
+- **Check the hardware:** install **GPSTest** (free). A phone that supports **dual-frequency (L1 + L5)** GPS is noticeably more accurate.
+- **Expected accuracy on campus:** about 2–5 m in open areas, and 5–15 m under monkeypod trees or next to tall buildings. That's good enough to know *which walkway segment* the rover is on (route level). It's **not** good enough to keep the rover on a sidewalk. The cameras handle that, with visual localization against the twin correcting GPS drift.
+- **Bonus sensors:** the phone also has an **IMU** (accelerometer + gyro, 100–400 Hz), a compass, and a barometer. These are useful for estimating heading and detecting slopes.
+
+**Getting phone data into the rover (ROS 2):**
+
+| Option | How |
+|---|---|
+| Easiest | A sensor-streaming app (e.g., **Sensor Logger**, or a "share GPS" NMEA app) → USB tethering or Wi-Fi to the rover computer → small ROS 2 bridge node |
+| GPS as a standard device | Stream NMEA → **gpsd** → ROS 2 `gpsd_client` |
+| Most control | A small custom Android app publishing GPS + IMU over UDP. Needs Android Studio and a few hundred lines of code. |
+
+**Fusion:** ROS 2 **`robot_localization`** (an EKF) fuses phone GPS + phone IMU + wheel odometry. Camera-based visual localization corrects it on top. Mount the phone rigidly, away from the motors, which disturb the compass.
+
+**In sim:** model the phone's GPS realistically in Isaac Sim: 3–15 m noise, slow drift, dropouts under tree canopy, and 1 Hz updates. The policy then learns to rely on cameras for fine positioning and not to trust GPS blindly.
+
+**Rough budget hardware list (prices approximate, check current):**
+
+| Part | Budget option | ~Cost |
+|---|---|---|
+| GPS + IMU | Old phone, no SIM | $0 |
+| On-board compute | NVIDIA **Jetson Orin Nano Super** dev kit | ~$250 |
+| Cameras | 4–6 USB/CSI cameras (wide-angle, ideally global shutter) or an Arducam multi-camera kit | ~$100–250 |
+| Drive base | **Used hoverboard** (hub motors + battery) with open-source FOC firmware, plus a plywood/aluminum chassis. Common in budget robotics. | ~$50–150 |
+| Wheel odometry | Hoverboard hall sensors (built in) | $0 |
+| Safety | Physical e-stop button + RC kill switch | ~$30–50 |
+| **Rover total** | | **~$450–700** |
+| Sim / training compute | Isaac Sim needs an NVIDIA **RTX** GPU (roughly RTX 3070-class minimum, 16 GB+ VRAM recommended). Without one, rent cloud GPUs by the hour only when training. | varies |
+
+The phone *could* also serve as a camera, but phone video adds latency and a phone covers only one view. Use the cheap dedicated cameras for perception, and keep the phone for GPS + IMU.
 
 ---
 
 ### Phase 2: Clean 3D Reconstruction (6–10 weeks for MVP zone)
 
-The goal is a static, empty, georeferenced campus twin that looks photoreal from the rover's cameras and has accurate collision geometry.
+The goal is a static, empty, georeferenced campus twin that looks photoreal from the rover's cameras and has accurate collision geometry. The pipeline below applies to **photo-based** data (Mapillary, Tier 3, Tier 4). Photoreal splats are layered onto the Tier 1 open-data world, which already provides collision geometry and semantics.
 
 **Pipeline per zone:**
 
@@ -210,7 +310,7 @@ Two levels. Don't try to learn the whole campus route end-to-end with RL.
 2. **Real rover, supervised, quiet hours:** MVP route at off-peak times, with a human walking alongside holding an e-stop.
 3. **Progressively busier times** on the MVP route.
 4. **Log everything.** Every disengagement becomes a sim scenario (*real failure → recreate in twin → retrain → regression test*). This loop is the core long-term process.
-5. **Expand the map** zone by zone (repeat Phases 1–3 per zone) until the rover can cross campus, e.g., **Lower Campus ↔ Hawaiʻi Hall / Bachman Hall**.
+5. **Expand the map** zone by zone (repeat Phases 1–3 per zone) until the rover can cross campus, starting from the **Holmes Hall → Campus Center → Architecture** spine.
 
 **Exit (v1 project complete):** autonomous, supervised traversal across campus at normal daytime traffic, with a disengagement rate below the target (e.g., < 1 per km), and route choices that measurably avoid peak crowds.
 
@@ -264,7 +364,7 @@ Two levels. Don't try to learn the whole campus route end-to-end with RL.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Google Maps content terms prohibit the intended use | Legal / redo work | Use Google only as a reference; your own capture is the primary source (§3, Phase 1) |
+| Google Maps content terms prohibit the intended use | Legal / redo work | Build v1 from open data, use Google only as a live preview via Cesium, then upgrade with your own capture (§3a) |
 | Splats look photoreal but dynamic agents look "pasted on" | Perception overfits to sim artifacts | Good assets, lighting match, heavy randomization, real data in the mix, measure the gap explicitly |
 | Splats have no physics; meshes from splats are noisy | Bad collisions, wrong stairs/curbs | Separate photogrammetry/2DGS collider, manual cleanup on the MVP route, GIS terrain |
 | Lighting and weather baked into splats | Model only works in "capture weather" | Capture overcast, appearance embeddings, relighting/randomization, multi-session capture |
@@ -272,8 +372,8 @@ Two levels. Don't try to learn the whole campus route end-to-end with RL.
 | Crowd model doesn't match reality | Route choices wrong | Calibrate with real counts; live perception updates override priors |
 | Camera-only fails in glare, rain, low light | Safety | HDR cameras, lens hoods and wipers, conservative supervisor, weather limits for operation |
 | End-to-end RL is sample-hungry and opaque | Slow progress, hard to debug | Modular stack: learned perception, RL only for local control, classical route planner, classical baseline |
-| People's reaction to the rover / campus rules | Project halted | Early UH engagement, supervised testing, visible signage, low speed |
-| Privacy of people captured | Ethical / legal | Face/plate blurring, aggregate-only crowd data, IRB check |
+| People's reaction to the rover / campus rules | Project halted | Supervised testing, visible signage, low speed, a human with an e-stop |
+| Privacy of people captured | Ethical / legal | Face/plate blurring, aggregate-only crowd data |
 | Scope creep | Never finishes | Strict phase exit criteria; MVP route before campus |
 
 ---
@@ -305,12 +405,12 @@ uh-manoa-rover/
 
 ## 9. Open Decisions (need your input)
 
-1. **Camera-only vs. "camera-only perception".** Tesla also uses GPS, an IMU, and wheel odometry. Recommendation: keep perception camera-only, but allow **GNSS + IMU + wheel encoders** for localization. They're cheap and make localization far more robust under the tree canopy and near buildings.
-2. **Rover platform:** buy (faster, reliable) or build (cheaper, custom)?
-3. **MVP route:** is Hamilton Library ↔ Campus Center (McCarthy Mall) right, or is another corridor more useful to you?
+1. ~~Sensors~~ **Decided:** perception is camera-only. Localization also uses **GPS + IMU from an old phone without a SIM card** plus wheel encoders (§3b).
+2. **Rover platform:** leaning budget DIY (hoverboard base + Jetson Orin Nano, §3b). Confirm.
+3. ~~MVP route~~ **Decided:** Holmes Hall → Campus Center → School of Architecture building.
 4. **Final "one side to the other" route:** which endpoints define success?
-5. **Drone capture:** pursue Part 107 + airspace authorization, or stay ground-only?
-6. **Compute budget:** local RTX workstation, university HPC (UH has the *Koa* cluster), or cloud?
+5. **Remote capture:** is there a friend or classmate on campus who can film Routes A and B (§3a Tier 3)?
+6. **Sim compute:** do you have an NVIDIA RTX GPU? If not: cloud by the hour, or the UH *Koa* cluster if you have access.
 7. **Team and timeline:** solo or team? Rough calendar, e.g., MVP in sim in ~6 months and the full campus in 12–18 months.
 
 ---
@@ -320,7 +420,7 @@ uh-manoa-rover/
 | Months | Milestone |
 |---|---|
 | 0–1 | Phase 0 complete |
-| 1–3 | MVP zone captured and reconstructed; dynamic agents running in Isaac Sim |
+| 1–3 | Tier 1 open-data twin of Routes A + B in Isaac Sim; dynamic agents running; Mapillary splats where coverage allows |
 | 3–6 | Perception + route planner + RL policy working **in sim** on the MVP route |
 | 6–9 | Rover built; hardware-in-the-loop; supervised real runs on the MVP route |
 | 9–18 | Zone-by-zone campus expansion; real-failure → sim → retrain loop; cross-campus traversal |
