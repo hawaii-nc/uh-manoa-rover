@@ -54,6 +54,70 @@ All learning happens first in a **photorealistic digital twin of the campus in N
 
 Each phase has an **exit criterion**. Don't start the next phase until it's met. Phases 1–3 can overlap partly once Phase 0 is done.
 
+### Phase M: Mainland Proof of Concept (before returning to campus)
+
+**Situation:** you're on the mainland, with no UH photos and nobody to take them. **Goal:** prove that every stage of the pipeline works end to end, so on return the only thing that changes is *the data*.
+
+**Core idea: build site-agnostic code, and prove it on a stand-in "proxy campus" near you.**
+
+Nothing in the pipeline is specific to UH except the inputs. Every script reads a site config (`sites/<name>/site.yaml`: origin lat/long, routes, class schedule or crowd prior, camera rig). Run the full pipeline on a **proxy site you can film yourself**. Run the layout-only parts on **UH from open data** (lidar + OSM, which exist for Oʻahu whether or not Mapillary has coverage). When you're back, add `sites/uh_manoa/` photos and rerun.
+
+```
+                      ┌─────────── same code, different site.yaml ───────────┐
+ Public test datasets ─▶ M1 transient-removal proof                          │
+ Proxy site (you film) ─▶ M2 splat+mesh twin ─▶ M4 agents ─▶ M5 perception ─▶ M6 RL policy ─▶ M7 rover (opt.)
+ UH open data (lidar/OSM/UH map, reference) ─▶ M3 UH layout twin + route planner (Holmes → CC → Arch)
+                                                              │
+ Back on campus: film UH routes ─▶ rerun M2, M4–M7 with sites/uh_manoa ─▶ real UH twin
+```
+
+#### Picking the proxy site
+
+Choose a public place near you that **looks and works like UH**: a public university's outdoor areas, a city park with buildings, or a downtown pedestrian area. Look for:
+
+- **Route shape:** two connected legs of about 200–400 m each, mirroring Holmes → Campus Center → Architecture.
+- **Mixed surfaces:** concrete walkways, grass edges, at least one set of stairs **with a ramp alternative**, curbs and curb cuts.
+- **Trees, buildings, and benches:** clutter for perception.
+- **Predictable crowds:** busy and quiet times you can film, which tests the crowd-aware routing.
+
+#### Milestones (each one a demo you can show)
+
+| # | Milestone | How | Proves | Done when |
+|---|---|---|---|---|
+| **M1** | Transient removal works | Run the Phase 2 pipeline on **public datasets made for this**: *NeRF On-the-go* and *RobustNeRF* (scenes full of people and objects as distractors), plus *Phototourism* (crowded landmarks). Compare plain 3DGS against masked + robust training. | People and cars can be removed cleanly | Side-by-side renders: ghosts in the baseline, clean in yours |
+| **M2** | Phone → splat + mesh → Isaac Sim | Film the proxy routes with **your old phone** (the §3a Tier 3 protocol, done by you) → COLMAP/GLOMAP → masked 3DGS/3DGUT → mesh → USD with semantics → Isaac Sim, georeferenced with phone GPS | The full capture-to-sim chain works on *your* hardware and phone | A virtual rover drives the proxy route; its camera view matches held-out phone frames |
+| **M3** | UH layout twin + crowd-aware routing | §3a Tier 1 open-data world for Holmes → Campus Center → Architecture (lidar + OSM, UH map as reference, construction as closed edges). Time-dependent route planner using the UH class-schedule crowd prior. | The UH-specific route logic works on the real campus layout | The planner picks different routes at class change vs. a quiet hour, with the reasons shown on a map |
+| **M4** | Dynamic world | Phase 3 agents (pedestrians, bikes, carts, cats/chickens) and scenarios (quiet / class change / rain / event) in **both** the proxy twin and the UH layout twin. Synthetic data export with labels. | The scenario engine is site-agnostic | The same scenario config runs on both sites |
+| **M5** | Perception trained in sim, tested on real | Train camera-only BEV perception on synthetic proxy data. **Test on real phone video of the proxy site** that you label lightly yourself (a few hundred frames). | **The sim-to-real gap is measurable and closable.** This is the most important result. | A metrics table: sim-only vs. sim + a little real, evaluated on real footage |
+| **M6** | Navigation policy | Phase 5 RL in Isaac Lab, plus the classical baseline and safety supervisor, on both twins | The policy and route planner work together | ≥ 95% success over randomized episodes on the proxy and UH layout twins |
+| **M7** *(optional)* | Real rover on proxy route | The §3b budget rover runs M5 + M6 on the real proxy route, supervised, at quiet times | Sim-to-real on hardware | A video of an autonomous run, plus a disengagement log |
+
+#### Why this counts as proof
+
+- **Data:** M1 + M2 show that you can turn phone footage into a clean, drivable sim world.
+- **Simulation:** M4 shows the agents and scenarios work, and that the setup is reusable.
+- **UH-specific logic:** M3 runs on the *actual* UH layout and schedule.
+- **Learning:** M5 + M6 show the models learn in sim and work on real images.
+- **Hardware:** M7 shows the rover is real, if you build it.
+
+The only untested thing left is "UH photos instead of proxy photos," and that's the same code with a new folder.
+
+#### Back-on-campus handoff checklist
+
+1. Film Routes A and B with the **same phone and protocol** used in M2.
+2. Create `sites/uh_manoa/` capture data and rerun M2. The splats align onto the M3 layout twin through GPS + lidar.
+3. Rerun M4–M6 with UH data, starting from the proxy-trained weights (fine-tune, don't restart).
+4. Start real crowd counts to replace the class-schedule prior.
+5. M7 on the real Holmes → Campus Center → Architecture route.
+
+#### Mainland requirements
+
+- An old phone (camera + GPS), and **an NVIDIA RTX GPU or cloud GPU hours** for splat training, Isaac Sim, and RL.
+- Optional: the §3b rover parts for M7.
+- Filming in public places is generally fine in the US. Blur faces in anything you store or share.
+
+---
+
 ### Phase 0: Foundations (2–4 weeks)
 
 | Item | Detail |
@@ -407,6 +471,9 @@ Two levels. Don't try to learn the whole campus route end-to-end with RL.
 ```
 uh-manoa-rover/
 ├── docs/                    # scope, design docs, capture protocol, test reports
+├── sites/                   # one folder per site; all code reads site.yaml
+│   ├── proxy_<name>/        # mainland stand-in campus (Phase M)
+│   └── uh_manoa/            # UH layout now, UH photos when back on campus
 ├── capture/                 # capture planning, GCP management, ingest + privacy blurring
 ├── reconstruction/          # SfM, transient masking, 3DGS training, mesh extraction, USD export
 ├── maps/                    # campus graph (OSM + UH), semantics, crowd priors, schedules
@@ -443,8 +510,8 @@ uh-manoa-rover/
 
 | Months | Milestone |
 |---|---|
-| 0–1 | Phase 0 complete |
-| 1–3 | Tier 1 open-data twin of Routes A + B in Isaac Sim; dynamic agents running; Mapillary splats where coverage allows |
-| 3–6 | Perception + route planner + RL policy working **in sim** on the MVP route |
-| 6–9 | Rover built; hardware-in-the-loop; supervised real runs on the MVP route |
-| 9–18 | Zone-by-zone campus expansion; real-failure → sim → retrain loop; cross-campus traversal |
+| 0–1 | Phase 0 complete; proxy site picked; M1 (transient removal on public datasets) |
+| 1–3 | M2 (proxy phone → splat → Isaac Sim) + M3 (UH layout twin + crowd-aware routing) |
+| 3–6 | M4–M6: agents, perception sim-to-real on proxy footage, RL policy, all on the mainland |
+| On return | Handoff checklist: film UH Routes A + B, rerun pipeline, fine-tune; build/test rover on the UH route |
+| After return | Zone-by-zone campus expansion; real-failure → sim → retrain loop; cross-campus traversal |
