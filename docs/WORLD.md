@@ -1,6 +1,6 @@
 # The 3D Training World
 
-`campus-rover build-world` turns a site into a labelled 3D world the rover's vision models can train in. The first one covers the UH Mānoa route corridor: **Holmes Hall → Campus Center → Architecture**, an 870 × 676 m box.
+`campus-rover build-world` turns a site into a labelled 3D world the rover's vision models can train in. The first one covers the UH Mānoa route corridor: **Holmes Hall → Campus Center → Architecture**, an 869 × 674 m box.
 
 | From above | Holmes Hall and POST |
 |---|---|
@@ -21,7 +21,7 @@ The plan and the reasoning behind it are in [CAMPUS_3D_PLAN.md](CAMPUS_3D_PLAN.m
 | Building shapes: towers, podiums, courtyards, pitched roofs | UH campus map footprints + lidar roof heights | 97 UH buildings |
 | Building looks: colours, windows, sun shading, ground floor, doors | Style sheets in `sites/uh_manoa/buildings/` | 50 researched, 47 guessed from the year built |
 | Off-campus buildings | Overture Maps footprints + lidar heights | background only |
-| Trees, with real height, crown width and palm vs. broadleaf | UH's tree survey | 2,065 |
+| Trees, with real height, crown width and palm vs. broadleaf | UH's tree survey | 2,057 |
 | Benches, bins, call boxes, bike racks and more | UH campus map layers | 752 |
 | People, bikes, skateboards, cars, carts, chickens, cats | Crowd model + scenario file | 1,335 at a Monday class change |
 
