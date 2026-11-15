@@ -1,0 +1,22 @@
+id: hemenway_hall
+name: Hemenway Hall
+tier: A
+floors: 2
+wall: '#d6c193'
+trim: '#c2ad80'
+glass: '#3a352e'
+roof: '#5a4a3c'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.5
+shading: none
+ground_floor: solid
+entrances:
+- side: S
+  kind: double
+  covered: true
+confidence: high
+notes: 1938. Tan stucco, dark window frames, dark brown hip roof, upstairs balcony.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1056_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

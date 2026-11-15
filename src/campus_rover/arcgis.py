@@ -26,6 +26,9 @@ Fetch = Callable[[str, dict], dict]
 USER_AGENT = "campus-rover/0.1 (research; +https://github.com/hawaii-nc/uh-manoa-rover)"
 
 
+RETRIES = 6
+
+
 class ArcGISError(RuntimeError):
     pass
 
@@ -33,8 +36,16 @@ class ArcGISError(RuntimeError):
 def http_get_json(url: str, params: dict, timeout: float = 30.0) -> dict:  # pragma: no cover
     query = urllib.parse.urlencode({**params, "f": params.get("f", "json")})
     req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.load(resp)
+    # Some servers (and proxies) drop connections now and then, so retry with backoff.
+    for attempt in range(RETRIES):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.load(resp)
+            break
+        except (OSError, json.JSONDecodeError):
+            if attempt == RETRIES - 1:
+                raise
+            time.sleep(2.0 * (attempt + 1))
     if isinstance(data, dict) and "error" in data:
         raise ArcGISError(f"{url}: {data['error']}")
     return data

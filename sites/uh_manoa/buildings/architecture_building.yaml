@@ -1,0 +1,23 @@
+id: architecture_building
+name: Architecture Building
+tier: A
+floors: 3
+wall: '#e6dfc4'
+trim: '#7d8f7c'
+glass: '#4a5a5c'
+roof: '#9aa39a'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.5
+shading: none
+ground_floor: solid
+entrances:
+- side: S
+  kind: wide
+  covered: true
+confidence: medium
+notes: 1996. Cream walls with grey-green trim and cornice, regular window grid, wide front steps, inner
+  courtyard.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1016_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

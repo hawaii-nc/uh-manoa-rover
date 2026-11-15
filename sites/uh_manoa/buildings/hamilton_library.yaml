@@ -1,0 +1,22 @@
+id: hamilton_library
+name: Hamilton Library
+tier: A
+floors: null
+wall: '#c2b49a'
+trim: '#ad9f86'
+glass: '#2c3438'
+roof: '#8a857a'
+windows: slit
+bay_m: 3.0
+window_ratio: 0.2
+shading: fins
+ground_floor: storefront
+entrances:
+- side: S
+  kind: wide
+  covered: true
+confidence: medium
+notes: 1968. Tan ribbed precast panels, nearly windowless upper floors over a glazed ground floor.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1199_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

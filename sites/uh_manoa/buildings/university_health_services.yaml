@@ -1,0 +1,22 @@
+id: university_health_services
+name: University Health Services
+tier: A
+floors: 1
+wall: '#dcd3ad'
+trim: '#3b3f3a'
+glass: '#3a4248'
+roof: '#55584f'
+windows: slit
+bay_m: 4.0
+window_ratio: 0.2
+shading: none
+ground_floor: solid
+entrances:
+- side: E
+  kind: double
+  covered: true
+confidence: medium
+notes: '1963 single storey: cream panels, dark fascia, patterned screen-block wall.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1190_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

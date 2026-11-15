@@ -1,0 +1,22 @@
+id: miller_hall
+name: Miller Hall
+tier: A
+floors: 2
+wall: '#dcd9cc'
+trim: '#c9c6b8'
+glass: '#4a5450'
+roof: '#a84b32'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.4
+shading: none
+ground_floor: solid
+entrances:
+- side: S
+  kind: double
+  covered: true
+confidence: high
+notes: 1939. Pale grey-cream walls under a red clay-tile hip roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1062_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

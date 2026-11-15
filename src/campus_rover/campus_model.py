@@ -48,6 +48,10 @@ ROLES = {
 
 NAME_FIELDS = ["name", "bldg_name", "building_name", "buildingname", "label", "title", "facility"]
 FLOORS_FIELDS = ["floors", "num_floors", "numfloors", "stories", "levels", "building_levels"]
+TREE_FIELDS = {
+    "height_m": "height_m", "trunk_diameter_m": "dbh_m", "canopy_radius_m": "canopyarea_m2",
+    "habit": "plhabit", "family": "family", "status": "status",
+}
 SPECIES_FIELDS = ["common_name", "commonname", "species", "sci_name", "scientific_name", "name"]
 
 
@@ -90,6 +94,7 @@ class Building:
     rings: list[list[Point]]
     height_m: float
     layer: str
+    props: dict = field(default_factory=dict)  # the source feature's attributes
 
 
 @dataclass
@@ -268,7 +273,9 @@ def add_layer(model: CampusModel, spec: LayerSpec, features: list[dict]) -> None
 
         if spec.role == "building":
             for rings in _polygons(geom):
-                model.buildings.append(Building(name, rings, _height(spec, props), spec.key))
+                model.buildings.append(
+                    Building(name, rings, _height(spec, props), spec.key, dict(props))
+                )
         elif spec.role == "construction":
             for rings in _polygons(geom):
                 model.closures.append(Area(rings, spec.reason, spec.key))
@@ -289,6 +296,14 @@ def add_layer(model: CampusModel, spec: LayerSpec, features: list[dict]) -> None
                 species = _pick(props, spec.species_field, SPECIES_FIELDS)
                 if species:
                     extra["species"] = str(species)
+                # Measured size and type, when the layer has them (UH's tree survey does).
+                lower = {str(k).lower(): v for k, v in props.items()}
+                for out_key, src in TREE_FIELDS.items():
+                    value = lower.get(src)
+                    if value not in (None, "", "None"):
+                        extra[out_key] = _number(value) if out_key.endswith("_m") else str(value)
+                if extra.get("canopy_radius_m"):  # the source field is an area in m²
+                    extra["canopy_radius_m"] = math.sqrt(extra["canopy_radius_m"] / math.pi)
             target = {
                 "tree": model.trees,
                 "prop": model.props,

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campus world viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #9fc4e8; font: 14px/1.4 system-ui, sans-serif; }
+  canvas { display: block; }
+  #bar { position: fixed; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap;
+         max-width: calc(100% - 20px); }
+  button { border: 0; border-radius: 6px; padding: 7px 11px; background: #fffd; color: #123;
+           cursor: pointer; font: inherit; }
+  button[aria-pressed="true"] { background: #0a5c46; color: #fff; }
+  #info { position: fixed; bottom: 10px; left: 10px; background: #fffd; color: #123;
+          border-radius: 6px; padding: 6px 10px; max-width: 70ch; }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="bar">
+  <button id="orbit" aria-pressed="true">Fly around</button>
+  <button id="rover" aria-pressed="false">Rover camera</button>
+  <button id="agents" aria-pressed="true">People &amp; vehicles</button>
+  <button id="labels" aria-pressed="false">Label colours</button>
+  <button id="route" aria-pressed="true">Route line</button>
+</div>
+<div id="info">Loading…</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './vendor/OrbitControls.js';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+
+// URL options (used for scripted screenshots):
+//   ?agents=agents_class_change.glb  which agents file to load ("" for none)
+//   ?cam=x,y,z&look=x,y,z            camera position and target in viewer coordinates
+//   ?rover=0.4                       rover camera at that fraction of the route
+//   ?labels=1  ?ui=0  ?noroute=1
+const q = new URLSearchParams(location.search);
+const info = document.getElementById('info');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const sky = new THREE.Color(0x9fc4e8);
+scene.background = sky;
+scene.fog = new THREE.Fog(sky, 250, 1400);
+scene.add(new THREE.HemisphereLight(0xdfeeff, 0x6b7355, 0.75));
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));   // keeps undersides from going black
+const sun = new THREE.DirectionalLight(0xfff2dc, 1.9);
+sun.position.set(300, 500, 200);
+scene.add(sun);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 4000);
+camera.position.set(-260, 260, 380);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 20, 0);
+controls.maxPolarAngle = Math.PI * 0.495;
+
+const LABEL = { grass: 0x4caf50, walkway: 0xffd54f, road: 0x455a64, building: 0xb0703c,
+  window: 0x29b6f6, door: 0x6d4c41, roof: 0x8d6e63, tree: 0x1b5e20, person: 0xe53935,
+  bicycle: 0xab47bc, skateboard: 0xec407a, car: 0x1e88e5, cart: 0x00acc1, chicken: 0xff7043,
+  cat: 0xffa726 };
+const meshes = [];
+let agentsRoot = null, routeLine = null, report = null, routePts = [];
+
+function prepare(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const cls = (o.name || o.parent?.name || '').split('|')[1] || 'prop';
+    o.userData.cls = cls;
+    o.userData.real = o.material;
+    if (cls === 'tree') o.material.side = THREE.DoubleSide;
+    o.userData.label = new THREE.MeshBasicMaterial({ color: LABEL[cls] ?? 0x9e9e9e,
+      side: cls === 'tree' ? THREE.DoubleSide : THREE.FrontSide });
+    meshes.push(o);
+  });
+}
+const load = (url) => new Promise((ok, fail) => new GLTFLoader().load(url, (g) => ok(g.scene), undefined, fail));
+
+function toViewer(x, y, z) {           // site coordinates -> viewer (y up)
+  const [ox, oy, oz] = report.origin;
+  return new THREE.Vector3(x - ox, z - oz, -(y - oy));
+}
+function groundAt(v) {                 // height of the terrain under a viewer point
+  const ray = new THREE.Raycaster(new THREE.Vector3(v.x, 500, v.z), new THREE.Vector3(0, -1, 0));
+  const hit = ray.intersectObjects(meshes.filter((m) => ['walkway', 'road', 'grass'].includes(m.userData.cls)))[0];
+  return hit ? hit.point.y : 0;
+}
+function press(id, on) { document.getElementById(id).setAttribute('aria-pressed', on); }
+const pressed = (id) => document.getElementById(id).getAttribute('aria-pressed') === 'true';
+
+let roverT = 0, roverOn = false;
+function placeRover(t) {
+  if (routePts.length < 2) return;
+  const f = Math.min(Math.max(t, 0), 0.999) * (routePts.length - 1);
+  const i = Math.floor(f), a = routePts[i], b = routePts[i + 1];
+  const p = a.clone().lerp(b, f - i);
+  const ahead = routePts[Math.min(i + 3, routePts.length - 1)];
+  camera.position.set(p.x, p.y + 0.7, p.z);              // rover camera height: 0.7 m
+  camera.lookAt(ahead.x, ahead.y + 0.9, ahead.z);
+}
+
+async function main() {
+  report = await (await fetch('world.json')).json();
+  const world = await load('world.glb');
+  prepare(world); scene.add(world);
+  const agentFile = q.has('agents') ? q.get('agents') : (report.agents_file || '');
+  if (agentFile) {
+    try { agentsRoot = await load(agentFile); prepare(agentsRoot); scene.add(agentsRoot); }
+    catch { /* no agents file: fine */ }
+  }
+  const xy = report.route?.xy || [];
+  if (xy.length > 1) {
+    // Resample the route every 2 m and drop it onto the terrain.
+    for (let i = 0; i < xy.length - 1; i++) {
+      const a = xy[i], b = xy[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2));
+      for (let k = 0; k < n; k++) {
+        const v = toViewer(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n, report.origin[2]);
+        v.y = groundAt(v); routePts.push(v);
+      }
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(routePts.map((p) => p.clone().setY(p.y + 0.15)));
+    routeLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xff3d00 }));
+    scene.add(routeLine);
+  }
+  const b = report.buildings.length, t = report.trees;
+  info.textContent = `${report.site}: ${report.size_m[0]} × ${report.size_m[1]} m · ${b} buildings · ${t} trees · ` +
+    `${report.mesh.triangles.toLocaleString()} triangles. Drag to look, scroll to zoom, right-drag to move.`;
+
+  if (q.get('labels') === '1') setLabels(true);
+  if (q.get('noroute') === '1' && routeLine) { routeLine.visible = false; press('route', false); }
+  if (q.get('ui') === '0') { document.getElementById('bar').style.display = 'none'; info.style.display = 'none'; }
+  if (q.has('cam')) {
+    const c = q.get('cam').split(',').map(Number), l = (q.get('look') || '0,0,0').split(',').map(Number);
+    camera.position.set(...c); controls.target.set(...l); controls.update();
+  }
+  if (q.has('rover')) { roverOn = true; roverT = Number(q.get('rover')); controls.enabled = false;
+    press('rover', true); press('orbit', false); camera.fov = 90; camera.updateProjectionMatrix(); placeRover(roverT); }
+  window.__ready = true;
+}
+function setLabels(on) {
+  press('labels', on);
+  for (const m of meshes) m.material = on ? m.userData.label : m.userData.real;
+  scene.fog.far = on ? 1e6 : 1400;
+}
+document.getElementById('labels').onclick = () => setLabels(!pressed('labels'));
+document.getElementById('agents').onclick = () => { const on = !pressed('agents'); press('agents', on); if (agentsRoot) agentsRoot.visible = on; };
+document.getElementById('route').onclick = () => { const on = !pressed('route'); press('route', on); if (routeLine) routeLine.visible = on; };
+document.getElementById('rover').onclick = () => { roverOn = true; roverT = 0; controls.enabled = false; press('rover', true); press('orbit', false); camera.fov = 90; camera.updateProjectionMatrix(); };
+document.getElementById('orbit').onclick = () => { roverOn = false; controls.enabled = true; press('rover', false); press('orbit', true);
+  camera.fov = 60; camera.updateProjectionMatrix(); camera.position.set(-260, 260, 380); controls.target.set(0, 20, 0); };
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+const clock = new THREE.Clock();
+const animated = !q.has('rover');
+renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
+  if (roverOn && animated && report) {            // drive the route at 1.2 m/s x 4
+    roverT = (roverT + dt * 4.8 / Math.max(report.route.length_m || 1, 1)) % 1;
+    placeRover(roverT);
+  } else if (!roverOn) controls.update();
+  renderer.render(scene, camera);
+});
+main().catch((e) => { info.textContent = 'Could not load the world: ' + e.message; window.__ready = true; });
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+id: hawaii_hall
+name: Hawai`I Hall
+tier: A
+floors: 3
+wall: '#e3dfc0'
+trim: '#d2ceae'
+glass: '#55604f'
+roof: '#8f8c80'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.45
+shading: none
+ground_floor: solid
+entrances:
+- side: E
+  kind: wide
+  covered: true
+confidence: high
+notes: '1912 neoclassical main building: cream walls, columned portico facing Varney Circle.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1002_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

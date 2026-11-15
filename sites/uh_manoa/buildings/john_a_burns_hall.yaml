@@ -1,0 +1,19 @@
+id: john_a_burns_hall
+name: John A. Burns Hall
+tier: A
+floors: 4
+wall: '#e6e2d6'
+trim: '#d3cfc2'
+glass: '#3d474c'
+roof: '#8e8c85'
+windows: ribbon
+bay_m: 4.5
+window_ratio: 0.6
+shading: none
+ground_floor: arcade
+entrances: []
+confidence: medium
+notes: '1977 East-West Center: white walls on large round columns, open ground floor.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1155_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

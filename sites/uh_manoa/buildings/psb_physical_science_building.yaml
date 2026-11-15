@@ -1,0 +1,22 @@
+id: psb_physical_science_building
+name: Psb Physical Science Building
+tier: A
+floors: 3
+wall: '#b5aa94'
+trim: '#a39883'
+glass: '#39434a'
+roof: '#8f8b82'
+windows: slit
+bay_m: 4.5
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+entrances:
+- side: S
+  kind: double
+  covered: true
+confidence: medium
+notes: 1960. Large blank precast panels; open stair bay in the middle of the front.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1159_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

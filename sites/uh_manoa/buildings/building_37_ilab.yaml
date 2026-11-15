@@ -1,0 +1,19 @@
+id: building_37_ilab
+name: Building 37 - Ilab
+tier: B
+floors: 1
+wall: '#e6dcb8'
+trim: '#d2c8a4'
+glass: '#3a3f3c'
+roof: '#8a5a3c'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.35
+shading: none
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1931. Cream single storey under a brown shingle roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1037_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

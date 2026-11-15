@@ -1,0 +1,19 @@
+id: crawford_hall
+name: Crawford Hall
+tier: B
+floors: 3
+wall: '#e3d7ae'
+trim: '#d0c49b'
+glass: '#4a5246'
+roof: '#8f8a7c'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.45
+shading: none
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1938. Cream walls, regular windows.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1057_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

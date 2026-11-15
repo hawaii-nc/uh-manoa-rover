@@ -1,0 +1,23 @@
+id: campus_center
+name: Campus Center
+tier: A
+floors: 3
+wall: '#cdbb9c'
+trim: '#b9a888'
+glass: '#3b4a52'
+roof: '#9a958a'
+windows: ribbon
+bay_m: 4.0
+window_ratio: 0.6
+shading: lanai
+ground_floor: arcade
+entrances:
+- side: N
+  kind: wide
+  covered: true
+confidence: medium
+notes: '1973 concrete student union: stepped open-air terraces, wide stairs, orange-glass canopy on the
+  courtyard side.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1055_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

@@ -1,0 +1,22 @@
+id: warrior_recreation_center
+name: Warrior Recreation Center
+tier: A
+floors: 2
+wall: '#a3a5a4'
+trim: '#8c6a4a'
+glass: '#4d6470'
+roof: '#c8c8c6'
+windows: curtain
+bay_m: 3.0
+window_ratio: 0.8
+shading: eyebrows
+ground_floor: storefront
+entrances:
+- side: N
+  kind: wide
+  covered: true
+confidence: medium
+notes: 2014. Grey metal panels and tall glass walls under a large oversailing roof with a wood soffit.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1250_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

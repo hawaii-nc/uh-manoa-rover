@@ -1,0 +1,22 @@
+id: george_hall
+name: George Hall
+tier: B
+floors: 3
+wall: '#e0d5ae'
+trim: '#cfc49c'
+glass: '#4f5a4a'
+roof: '#8f8a7c'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.45
+shading: none
+ground_floor: arcade
+entrances:
+- side: W
+  kind: wide
+  covered: true
+confidence: medium
+notes: 1925. Cream, with a two-storey colonnade across the front.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1019_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

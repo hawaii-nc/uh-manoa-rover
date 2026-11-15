@@ -1,0 +1,19 @@
+id: isabella_aiona_abbott_life_sciences_building
+name: Isabella Aiona Abbott Life Sciences Building
+tier: B
+floors: 4
+wall: '#8f9396'
+trim: '#7b7f82'
+glass: '#4a7fa8'
+roof: '#a2a4a5'
+windows: curtain
+bay_m: 3.5
+window_ratio: 0.8
+shading: eyebrows
+ground_floor: storefront
+entrances: []
+confidence: medium
+notes: Grey panels and blue glass with horizontal sunshades.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1263_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

@@ -1,0 +1,19 @@
+id: administrative_services_building_2
+name: Administrative Services Building 2
+tier: B
+floors: 1
+wall: '#c9b79c'
+trim: '#4a4038'
+glass: '#353a3c'
+roof: '#4f463c'
+windows: grid
+bay_m: 3.5
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+entrances: []
+confidence: low
+notes: 1972. Small tan building with a dark roof edge.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1124A_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

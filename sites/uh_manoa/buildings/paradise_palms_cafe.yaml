@@ -1,0 +1,19 @@
+id: paradise_palms_cafe
+name: Paradise Palms Cafe
+tier: B
+floors: 1
+wall: '#d6b99a'
+trim: '#c2a586'
+glass: '#3f4c4a'
+roof: '#3f8f84'
+windows: curtain
+bay_m: 4.0
+window_ratio: 0.6
+shading: none
+ground_floor: arcade
+entrances: []
+confidence: medium
+notes: '1994 food court: pink-tan columns, teal metal roof.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1201_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

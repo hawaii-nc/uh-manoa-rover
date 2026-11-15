@@ -126,8 +126,8 @@ def test_demo_site_model_feeds_planner(sites_dir):
     assert "eatery" in site.crowd["zones"]
 
 
-def test_uh_layers_config_loads_without_data(sites_dir):
-    site = load_site("uh_manoa", sites_dir)
+def test_uh_layers_config_loads_without_data(bare_sites_dir):
+    site = load_site("uh_manoa", bare_sites_dir)
     model = build_model(site)
     assert "buildings" in model.missing_layers and "survey_benchmarks" in model.missing_layers
     assert model.summary()["buildings"] == 0

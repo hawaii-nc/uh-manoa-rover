@@ -1,0 +1,22 @@
+id: information_technology_center
+name: Information Technology Center
+tier: A
+floors: null
+wall: '#d7d9d8'
+trim: '#b9bcbb'
+glass: '#5a7482'
+roof: '#a9aba9'
+windows: curtain
+bay_m: 3.0
+window_ratio: 0.8
+shading: eyebrows
+ground_floor: storefront
+entrances:
+- side: S
+  kind: double
+  covered: true
+confidence: medium
+notes: 2014. White and grey with rows of horizontal metal sunshades over glass.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1140_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

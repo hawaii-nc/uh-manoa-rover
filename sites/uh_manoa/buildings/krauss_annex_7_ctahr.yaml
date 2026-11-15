@@ -1,0 +1,19 @@
+id: krauss_annex_7_ctahr
+name: Krauss Annex 7 - Ctahr
+tier: B
+floors: 1
+wall: '#e0d8ba'
+trim: '#7a5a40'
+glass: '#4a6a80'
+roof: '#7a5a40'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.4
+shading: none
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: '1972 raised wooden annex: cream boards, brown roof and deck.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1046U_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

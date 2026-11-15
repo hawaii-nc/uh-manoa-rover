@@ -17,50 +17,53 @@ layers:
   buildings:
     title: Buildings
     role: building
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/0
+    name_field: PROP_NAME
     default_height_m: 12     # replaced by lidar heights later
   active_constructions:
     title: Active Constructions
     role: construction
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/12001
     reason: construction
   staging_areas:
     title: Staging Areas
     role: construction
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/12002
     reason: construction staging
 
   # --- trees -----------------------------------------------------------------
   trees:
     title: Campus Arboretum / Trees
     role: tree
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/8010
+    species_field: VERNACULAR
+    where: "STATUS = 'Living'"
 
   # --- static props (sim objects + perception classes) ------------------------
-  outdoor_seating:      {title: Outdoor Seating, role: prop, prop_class: bench, url: }
-  emergency_call_boxes: {title: Emergency Call Boxes, role: prop, prop_class: emergency_call_box, url: }
-  bicycle_parking:      {title: Bicycle Parking, role: prop, prop_class: bike_rack, url: }
-  skateboard_parking:   {title: Skateboard Parking, role: prop, prop_class: skateboard_rack, url: }
-  biki_stops:           {title: Biki Bike Share Stops, role: prop, prop_class: bike_share_dock, url: }
-  ev_charging:          {title: EV Charging Stations, role: prop, prop_class: ev_charger, url: }
-  mail_boxes:           {title: Mail Boxes, role: prop, prop_class: mailbox, url: }
-  bulletin_boards:      {title: Community Bulletin Boards, role: prop, prop_class: bulletin_board, url: }
-  recycling:            {title: Recycling, role: prop, prop_class: recycling_bin, url: }
-  refuse:               {title: Refuse, role: prop, prop_class: trash_can, url: }
-  art_pieces:           {title: Art Pieces, role: prop, prop_class: art_piece, url: }
+  outdoor_seating:      {title: Outdoor Seating, role: prop, prop_class: bench, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2010 }
+  emergency_call_boxes: {title: Emergency Call Boxes, role: prop, prop_class: emergency_call_box, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2004 }
+  bicycle_parking:      {title: Bicycle Parking, role: prop, prop_class: bike_rack, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/9001 }
+  skateboard_parking:   {title: Skateboard Parking, role: prop, prop_class: skateboard_rack, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/9009 }
+  biki_stops:           {title: Biki Bike Share Stops, role: prop, prop_class: bike_share_dock, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/9003 }
+  ev_charging:          {title: EV Charging Stations, role: prop, prop_class: ev_charger, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/9005 }
+  mail_boxes:           {title: Mail Boxes, role: prop, prop_class: mailbox, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2008 }
+  bulletin_boards:      {title: Community Bulletin Boards, role: prop, prop_class: bulletin_board, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2003 }
+  recycling:            {title: Recycling, role: prop, prop_class: recycling_bin, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/11001 }
+  refuse:               {title: Refuse, role: prop, prop_class: trash_can, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/11002 }
+  art_pieces:           {title: Art Pieces, role: prop, prop_class: art_piece, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/6003 }
   # Many of these are indoors; filter with `where:` once the fields are known.
-  vending_machines:     {title: Vending Machines, role: prop, prop_class: vending_machine, url: }
-  water_refill:         {title: Water Refill Stations, role: prop, prop_class: water_refill, url: }
+  vending_machines:     {title: Vending Machines, role: prop, prop_class: vending_machine, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/4004 }
+  water_refill:         {title: Water Refill Stations, role: prop, prop_class: water_refill, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/9008 }
 
   # --- accessibility: preferred building entrances -----------------------------
-  automatic_doors:      {title: Automatic Doors, role: accessible_entrance, prop_class: automatic_door, url: }
-  elevators:            {title: Elevators, role: accessible_entrance, prop_class: elevator, url: }
+  automatic_doors:      {title: Automatic Doors, role: accessible_entrance, prop_class: automatic_door, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/7002 }
+  elevators:            {title: Elevators, role: accessible_entrance, prop_class: elevator, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/7003 }
 
   # --- crowd sources ---------------------------------------------------------
   eateries:
     title: Eateries
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/4002
     zone: eatery
     radius_m: 50
     windows:
@@ -68,7 +71,7 @@ layers:
   food_trucks:
     title: Food Trucks
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/4003
     zone: food_truck
     radius_m: 40
     windows:
@@ -76,7 +79,7 @@ layers:
   coffee:
     title: Coffee
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/4001
     zone: coffee
     radius_m: 30
     windows:
@@ -84,7 +87,7 @@ layers:
   rainbow_shuttle_stops:
     title: Rainbow Shuttle Stops
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/3003
     zone: shuttle_stop
     radius_m: 30
     windows:
@@ -93,7 +96,7 @@ layers:
   thebus_stops:
     title: TheBus Stops
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/3005
     zone: bus_stop
     radius_m: 30
     windows:
@@ -102,7 +105,7 @@ layers:
   forum_areas:
     title: Designated Campus Forum Areas
     role: crowd_source
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2012
     zone: forum
     radius_m: 40
     windows:
@@ -112,9 +115,9 @@ layers:
   survey_benchmarks:
     title: Ground Survey Benchmarks
     role: gcp
-    url:
+    url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/2006
 
   # --- vehicles (cars/carts in sim) ----------------------------------------------
-  visitor_parking:      {title: Visitor Parking Stalls, role: vehicle_spawn, url: }
-  accessible_parking:   {title: Accessible Parking Stalls, role: vehicle_spawn, url: }
-  parking_structures:   {title: Zone 20 Parking Structures, role: vehicle_spawn, url: }
+  visitor_parking:      {title: Visitor Parking Stalls, role: vehicle_spawn, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/3007 }
+  accessible_parking:   {title: Accessible Parking Stalls, role: vehicle_spawn, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/7001 }
+  parking_structures:   {title: Zone 20 Parking Structures, role: vehicle_spawn, url: https://map.hawaii.edu/server/rest/services/OneMap_Public/MA_OneMapPublic/MapServer/3009 }

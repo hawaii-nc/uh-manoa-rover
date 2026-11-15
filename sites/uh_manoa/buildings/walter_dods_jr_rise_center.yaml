@@ -1,0 +1,19 @@
+id: walter_dods_jr_rise_center
+name: Walter Dods, Jr. Rise Center
+tier: B
+floors: null
+wall: '#d8dbe0'
+trim: '#e3d9c2'
+glass: '#5a7388'
+roof: '#9a9c9e'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.6
+shading: none
+ground_floor: storefront
+entrances: []
+confidence: low
+notes: '2023 student housing: restored cream front with a modern grey-blue block behind.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1265_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

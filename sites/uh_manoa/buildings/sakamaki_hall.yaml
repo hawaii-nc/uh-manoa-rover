@@ -1,0 +1,19 @@
+id: sakamaki_hall
+name: Sakamaki Hall
+tier: B
+floors: 4
+wall: '#cfc6ad'
+trim: '#bbb299'
+glass: '#394246'
+roof: '#8d897e'
+windows: grid
+bay_m: 3.6
+window_ratio: 0.5
+shading: lanai
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1977. Beige concrete wings with open corridors around an open centre.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1047_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

@@ -1,0 +1,19 @@
+id: saunders_hall
+name: Saunders Hall
+tier: B
+floors: 7
+wall: '#b4b1a8'
+trim: '#a19e95'
+glass: '#333a3e'
+roof: '#8a8882'
+windows: grid
+bay_m: 3.6
+window_ratio: 0.5
+shading: lanai
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1974. Seven-storey, five-sided grey concrete with open corridors.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1014_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

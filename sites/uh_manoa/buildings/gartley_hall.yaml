@@ -1,0 +1,22 @@
+id: gartley_hall
+name: Gartley Hall
+tier: A
+floors: 3
+wall: '#d9d6c0'
+trim: '#c7c4aa'
+glass: '#5b6b5e'
+roof: '#8d8a80'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.45
+shading: none
+ground_floor: solid
+entrances:
+- side: S
+  kind: double
+  covered: true
+confidence: high
+notes: '1922 neoclassical: pale cream walls, green window frames, columned entry up a flight of steps.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1015_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

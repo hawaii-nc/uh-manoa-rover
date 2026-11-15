@@ -53,3 +53,7 @@ planner:
     crowd: 0.05           # per (person/100 m) per meter
     complexity: 0.3
     slope: 0.5
+
+# 3D training world (campus-rover build-world). No lidar here: flat ground, box buildings.
+world:
+  pad_m: 30

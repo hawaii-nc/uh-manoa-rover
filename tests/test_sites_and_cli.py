@@ -73,11 +73,11 @@ def test_cli_sweep(sites_dir, capsys):
     assert "(detour)" in capsys.readouterr().out
 
 
-def test_cli_uh_without_graph_gives_import_hint(sites_dir, capsys):
+def test_cli_uh_without_graph_gives_import_hint(bare_sites_dir, capsys):
     code = main(
         [
             "--sites-dir",
-            str(sites_dir),
+            str(bare_sites_dir),
             "plan",
             "--site",
             "uh_manoa",
@@ -112,9 +112,10 @@ def test_cli_build_model(sites_dir, tmp_path, capsys):
     assert "buildings" in capsys.readouterr().out
 
 
-def test_cli_build_model_uh_without_data(sites_dir, capsys):
+def test_cli_build_model_uh_without_data(bare_sites_dir, capsys):
     code = main(
-        ["--sites-dir", str(sites_dir), "build-model", "--site", "uh_manoa", "--allow-no-graph"]
+        ["--sites-dir", str(bare_sites_dir), "build-model", "--site", "uh_manoa",
+         "--allow-no-graph"]
     )
     assert code == 0
     assert "not downloaded yet" in capsys.readouterr().out

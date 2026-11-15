@@ -1,0 +1,23 @@
+id: holmes_hall
+name: Holmes Hall
+tier: A
+floors: 5
+wall: '#b9b4aa'
+trim: '#a8a39a'
+glass: '#3a4248'
+roof: '#8e8b85'
+windows: grid
+bay_m: 3.6
+window_ratio: 0.5
+shading: lanai
+ground_floor: arcade
+entrances:
+- side: N
+  kind: wide
+  covered: true
+confidence: medium
+notes: '1972 engineering building: grey exposed concrete, open-air corridors with railings on every floor,
+  columns at ground level.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1163_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

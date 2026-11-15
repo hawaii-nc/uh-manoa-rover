@@ -1,0 +1,19 @@
+id: bachman_annex_2_communications
+name: Bachman Annex 2 - Communications
+tier: B
+floors: 1
+wall: '#9c978b'
+trim: '#86817a'
+glass: '#3d4548'
+roof: '#6f6b64'
+windows: grid
+bay_m: 3.5
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: '1926 wooden annex: grey board walls, small windows, ramp.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1024C_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

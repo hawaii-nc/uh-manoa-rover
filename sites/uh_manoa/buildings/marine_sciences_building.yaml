@@ -1,0 +1,19 @@
+id: marine_sciences_building
+name: Marine Sciences Building
+tier: A
+floors: 7
+wall: '#dcdcd8'
+trim: '#c8c8c4'
+glass: '#2f383d'
+roof: '#8e8e8a'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.55
+shading: fins
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1982. White concrete with vertical fins and dark windows.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1098_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

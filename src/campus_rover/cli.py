@@ -150,10 +150,103 @@ def cmd_fetch_layers(args) -> int:  # pragma: no cover - network
         print("no layers with a `url:` in layers.yaml (see docs/UH_MAP_MODEL.md)")
         return 1
     for spec in specs:
-        features = query_layer(spec.url, site.crs, where=spec.where, pause_s=0.5)
         path = layer_path(site, spec)
+        if path.exists() and not args.force:
+            print(f"{spec.key:<28} cached -> {path}")
+            continue
+        features = query_layer(spec.url, site.crs, where=spec.where, pause_s=0.5)
         save_geojson(features, path, site.crs, spec.url)
         print(f"{spec.key:<28}{len(features):>6} features -> {path}")
+    return 0
+
+
+def cmd_fetch_world_data(args) -> int:  # pragma: no cover - network
+    """Download what build-world needs: walkways, roads, off-campus footprints, lidar."""
+    import json
+    import urllib.request
+
+    from .lidar import rasterize_tiles
+    from .overture import fetch_buildings, fetch_segments, segments_to_campus_graph
+    from .world import WorldConfig, corridor_bbox
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    bbox = tuple(site.raw["graph"]["osm"]["bbox"])
+    if cfg.segments and (args.force or not (site.root / cfg.segments).exists()):
+        segments = fetch_segments(bbox, site.crs)
+        path = site.root / cfg.segments
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(segments))
+        print(f"segments   {len(segments):>6} -> {path}")
+        if args.force or not site.graph_path.exists():
+            graph = segments_to_campus_graph(segments)
+            graph.save(site.graph_path)
+            print(f"graph      {graph.g.number_of_edges():>6} edges -> {site.graph_path}")
+    if cfg.background_buildings and (args.force
+                                     or not (site.root / cfg.background_buildings).exists()):
+        footprints = fetch_buildings(bbox, site.crs)
+        path = site.root / cfg.background_buildings
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(footprints))
+        print(f"footprints {len(footprints):>6} -> {path}")
+    if cfg.lidar_tiles and cfg.rasters:
+        folder = site.root / "cache" / "lidar"
+        folder.mkdir(parents=True, exist_ok=True)
+        tiles = []
+        for url in cfg.lidar_tiles:
+            tile = folder / url.rsplit("/", 1)[-1]
+            if not tile.exists():
+                print(f"downloading {tile.name} ...")
+                urllib.request.urlretrieve(url, tile)
+            tiles.append(tile)
+        model = site.load_model()
+        box = corridor_bbox(site, model, cfg)
+        rasters = rasterize_tiles(tiles, box, cfg.lidar_res, progress=lambda m: print(f"  {m}"))
+        rasters.save(site.root / cfg.rasters)
+        print(f"lidar grids {rasters.shape} at {cfg.lidar_res} m -> {site.root / cfg.rasters}")
+    return 0
+
+
+def cmd_view(args) -> int:  # pragma: no cover - serves files until interrupted
+    import functools
+    import http.server
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=args.dir)
+    with http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler) as server:
+        print(f"viewer: http://127.0.0.1:{args.port}/  (Ctrl+C to stop)")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+    return 0
+
+
+def cmd_build_world(args) -> int:
+    import yaml
+
+    from .agents import Scenario
+    from .world import build_world, write_world
+
+    site = load_site(args.site, args.sites_dir)
+    scenario = None
+    if args.scenario:
+        path = site.root / "scenarios" / f"{args.scenario}.yaml"
+        scenario = Scenario.from_dict(yaml.safe_load(path.read_text())) if path.exists() \
+            else Scenario(name=args.scenario)
+    world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."))
+    files = write_world(world, Path(args.out), usd=not args.no_usd)
+    r = world.report
+    tiers = {t: sum(b["tier"] == t for b in r["buildings"]) for t in "ABC"}
+    print(f"{site.name}: {r['size_m'][0]} x {r['size_m'][1]} m, ground {r['elevation_m'][0]}"
+          f"-{r['elevation_m'][1]} m, lidar: {'yes' if r['lidar'] else 'no (flat)'}")
+    print(f"buildings {len(r['buildings'])} (tier A {tiers['A']}, B {tiers['B']}, C {tiers['C']};"
+          f" {sum(b['researched'] for b in r['buildings'])} with a style sheet)"
+          f" · trees {r['trees']} · props {sum(r['props'].values())}")
+    print(f"triangles {r['mesh']['triangles']:,} · surfaces {r['surface_share']}")
+    if r["agents"]:
+        print("agents: " + ", ".join(f"{k} {v}" for k, v in r["agents"].items() if v))
+    for name, path in files.items():
+        print(f"  {name:<12} {path}  ({path.stat().st_size / 1e6:.1f} MB)")
     return 0
 
 
@@ -232,7 +325,27 @@ def build_parser() -> argparse.ArgumentParser:
     fetch = sub.add_parser("fetch-layers", help="download the site's map layers (layers.yaml)")
     fetch.add_argument("--site", required=True)
     fetch.add_argument("--only", nargs="*", help="layer keys to fetch")
+    fetch.add_argument("--force", action="store_true", help="re-download cached layers")
     fetch.set_defaults(func=cmd_fetch_layers)
+
+    world = sub.add_parser("build-world", help="build the 3D training world (GLB + USD)")
+    world.add_argument("--site", required=True)
+    world.add_argument("--out", required=True, help="output folder")
+    world.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
+    world.add_argument("--route", help="route key that defines the corridor (default: last)")
+    world.add_argument("--no-usd", action="store_true", help="skip the USD files")
+    world.set_defaults(func=cmd_build_world)
+
+    data = sub.add_parser("fetch-world-data",
+                          help="download walkways, roads, footprints and lidar for build-world")
+    data.add_argument("--site", required=True)
+    data.add_argument("--force", action="store_true", help="re-download what is already cached")
+    data.set_defaults(func=cmd_fetch_world_data)
+
+    view = sub.add_parser("view", help="open a built world in the browser viewer")
+    view.add_argument("--dir", required=True, help="the folder build-world wrote")
+    view.add_argument("--port", type=int, default=8000)
+    view.set_defaults(func=cmd_view)
 
     build = sub.add_parser("build-model", help="build the campus map model; export USD/plot")
     build.add_argument("--site", required=True)

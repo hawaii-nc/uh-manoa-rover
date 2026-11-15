@@ -1,0 +1,22 @@
+id: queen_liliuokalani_center_for_student_services
+name: Queen Lili`Uokalani Center For Student Services
+tier: A
+floors: 5
+wall: '#d2bfa3'
+trim: '#bfac90'
+glass: '#3e474b'
+roof: '#93897a'
+windows: ribbon
+bay_m: 3.5
+window_ratio: 0.7
+shading: eyebrows
+ground_floor: arcade
+entrances:
+- side: S
+  kind: wide
+  covered: true
+confidence: medium
+notes: 1993. Tan, curved front with horizontal tiers of windows and sunshades.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1020_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

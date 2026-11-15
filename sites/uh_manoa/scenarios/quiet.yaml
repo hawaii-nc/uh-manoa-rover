@@ -1,0 +1,8 @@
+# Sunday morning: almost nobody around.
+name: quiet
+time: "Sun 07:30"
+seed: 11
+min_people_per_100m: 0.15
+parked_share: 0.25
+moving_car_every_m: 400
+carts: 1

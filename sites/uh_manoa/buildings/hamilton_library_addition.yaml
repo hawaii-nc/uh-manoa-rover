@@ -1,0 +1,19 @@
+id: hamilton_library_addition
+name: Hamilton Library Addition
+tier: B
+floors: null
+wall: '#a9a9a4'
+trim: '#8f8f8a'
+glass: '#2b3338'
+roof: '#77777a'
+windows: curtain
+bay_m: 3.5
+window_ratio: 0.6
+shading: fins
+ground_floor: storefront
+entrances: []
+confidence: low
+notes: 2000. Grey metal panels and dark glass under a sloped roof edge.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1199C_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

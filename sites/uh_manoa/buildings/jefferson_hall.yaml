@@ -1,0 +1,22 @@
+id: jefferson_hall
+name: Jefferson Hall
+tier: B
+floors: null
+wall: '#eceae4'
+trim: '#d9d7d0'
+glass: '#3f3a36'
+roof: '#bdbcb6'
+windows: curtain
+bay_m: 4.5
+window_ratio: 0.7
+shading: none
+ground_floor: arcade
+entrances:
+- side: W
+  kind: wide
+  covered: true
+confidence: medium
+notes: '1962 by I. M. Pei: white, colonnade at ground level under a deep overhanging roof.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1181_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

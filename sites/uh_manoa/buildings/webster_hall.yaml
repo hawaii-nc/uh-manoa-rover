@@ -1,0 +1,19 @@
+id: webster_hall
+name: Webster Hall
+tier: A
+floors: 4
+wall: '#e2dcc4'
+trim: '#cdc7ae'
+glass: '#48626e'
+roof: '#8f8c82'
+windows: grid
+bay_m: 2.8
+window_ratio: 0.45
+shading: none
+ground_floor: solid
+entrances: []
+confidence: medium
+notes: 1961. Cream classroom block with patterned screen-block panels.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/1167_01.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)
