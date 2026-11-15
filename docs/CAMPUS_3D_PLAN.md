@@ -1,6 +1,6 @@
 # Plan: A Realistic 3D UH Mānoa Campus for Training the Rover
 
-**Status:** research and plan, nothing built yet · **Date:** 2026-11-15
+**Status:** P0–P3 and a first pass of P5 are built for the route corridor (see [WORLD.md](WORLD.md)) · **Date:** 2026-11-15
 
 This plan covers one feature: turning the UH Mānoa campus into a 3D world, with buildings, ground, trees, people, bikes and cars, that the rover's computer-vision models can train on. It builds on what the repo already has (`campus_model.py`, `usd_export.py`, the Tier 1 plan in [SCOPE.md §3a](SCOPE.md)) and replaces the "hand-model it in Blender" steps with something an AI agent can do cheaply and correctly.
 
@@ -177,7 +177,19 @@ Each step ends in something you can look at.
 | **P6** | Training data: Isaac Sim Replicator export with randomised light, weather, materials and camera | A labelled dataset of Route A, and a first model scored on real frames (M5) | Small (scripts) | **An NVIDIA RTX GPU on your side** |
 | **P7** | Photo-real upgrade with splats | Later, when footage exists | n/a | Footage |
 
-P0, P1 (buildings and terrain) and P2 can start right now in this session.
+### Progress (2026-11-15)
+
+| Step | State |
+|---|---|
+| P0 Setup | Done: style-sheet schema, `CLAUDE.md` |
+| P1 Shape | Done for the corridor: lidar terrain, roof-level massing, trees, walkway graph |
+| P2 Generator | Done: windows, sun shading, ground floors, doors, flat and pitched roofs |
+| P3 Style sheets | First pass done: 28 tier A and 22 tier B buildings, each from UH's photo. Needs your review. |
+| P4 Ground detail | Started: road / walkway / grass from lidar. No curbs, steps or textures yet. |
+| P5 Agents | First pass: procedural stand-ins placed by the crowd model, two scenarios. Rigged assets still to do. |
+| P6 Training data | Not started. Needs Isaac Sim on an RTX GPU. |
+
+Two things changed from the plan. OpenStreetMap's Overpass server refused this session, so walkways come from Overture Maps, which republishes the same data. And the lidar turned out to label only ground, so roofs and trees are told apart by how many echoes each laser pulse returned.
 
 ---
 

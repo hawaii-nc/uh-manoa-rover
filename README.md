@@ -4,6 +4,8 @@ A camera-only autonomous rover that learns to navigate the University of Hawaiʻ
 
 - **[docs/SCOPE.md](docs/SCOPE.md):** full project scope (phases, mainland proof of concept, data plan, risks)
 - **[docs/LIBRARIES.md](docs/LIBRARIES.md):** open-source libraries for each pipeline stage
+- **[docs/WORLD.md](docs/WORLD.md):** the 3D training world: what is in it, how to build it, what is not right yet
+- **[docs/CAMPUS_3D_PLAN.md](docs/CAMPUS_3D_PLAN.md):** research and plan behind the 3D world
 - **[docs/UH_MAP_MODEL.md](docs/UH_MAP_MODEL.md):** turning the UH campus map into the planning model and an Isaac Sim (USD) scene
 
 ## The short version
@@ -13,6 +15,14 @@ A camera-only autonomous rover that learns to navigate the University of Hawaiʻ
 3. **Simulate**: load the twin into Isaac Sim and add pedestrians, bikes, carts, cars, and the campus chickens and cats.
 4. **Learn**: train camera-only perception, prediction, and crowd-aware navigation.
 5. **Transfer**: move from sim to a real rover, starting on one short route and then expanding across campus.
+
+## New: the 3D training world
+
+`campus-rover build-world` builds a labelled 3D world of the route corridor (Holmes Hall → Campus Center → Architecture) from open data: lidar terrain and roof shapes, UH's campus map, 50 researched building style sheets, 2,065 surveyed trees, and people, bikes and cars placed by the crowd model. It exports USD for Isaac Sim and a browser viewer. See **[docs/WORLD.md](docs/WORLD.md)**.
+
+| From above | Rover camera, as labels |
+|---|---|
+| ![aerial](docs/img/world_aerial.jpg) | ![labels](docs/img/world_labels.jpg) |
 
 ## What works today: the crowd-aware route planner
 
