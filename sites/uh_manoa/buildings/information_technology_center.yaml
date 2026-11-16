@@ -12,9 +12,11 @@ window_ratio: 0.8
 shading: eyebrows
 ground_floor: storefront
 confidence: medium
-notes: 2014. White and grey with rows of horizontal metal sunshades over glass. Floor plans show 7 floors
-  plus basement.
+notes: '2014. White and grey with rows of horizontal metal sunshades over glass. Floor plans show 7 floors
+  plus basement. Corridors: enclosed (Photo 1140_01 shows a glazed, louvre-shaded facade: corridors are
+  inside.)'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1140_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
 - https://manoa.hawaii.edu/planning/Public/PDF/1140.pdf
+corridors: enclosed

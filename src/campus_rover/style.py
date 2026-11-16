@@ -40,6 +40,8 @@ class Style:
     shading: str = "none"
     ground_floor: str = "solid"
     solid: bool = True                 # False = an open area (courts, amphitheatre): not built
+    corridors: str | None = None       # "open" (galleries, balconies) or "enclosed", from a photo
+                                       # or plan; None = unknown, so a floor plan is not used
     sources: list[str] = field(default_factory=list)
     confidence: str = "low"
     notes: str = ""
@@ -55,6 +57,8 @@ class Style:
         check(self.ground_floor in GROUND_FLOORS,
               f"ground_floor must be one of {sorted(GROUND_FLOORS)}")
         check(self.confidence in CONFIDENCE, f"confidence must be one of {sorted(CONFIDENCE)}")
+        check(self.corridors in (None, "open", "enclosed"),
+              "corridors must be open, enclosed or left out")
         check(self.floors is None or 1 <= self.floors <= 60, "floors must be 1-60")
         check(1.0 <= self.bay_m <= 12.0, "bay_m must be 1-12 m")
         check(0.1 <= self.window_ratio <= 0.95, "window_ratio must be 0.1-0.95")

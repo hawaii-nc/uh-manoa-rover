@@ -12,8 +12,9 @@ window_ratio: 0.4
 shading: none
 ground_floor: solid
 confidence: high
-notes: 1996. Cream walls with pilasters and a deep cornice over a tan rusticated base, teal-framed windows
+notes: '1996. Cream walls with pilasters and a deep cornice over a tan rusticated base, teal-framed windows
   in a regular grid, side stairs to raised entries, curved inner courtyard wall. Floor plans show 3 floors.
+  Corridors: enclosed (Photos 1016_01-04 show continuous windows and no galleries: corridors are inside.)'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1016_01.jpg
 - https://map.hawaii.edu/images/MA/building_images/1016_04.jpg
@@ -21,3 +22,4 @@ sources:
 - https://map.hawaii.edu/images/MA/building_images/1016_02.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
 - https://manoa.hawaii.edu/planning/Public/PDF/1016.pdf
+corridors: enclosed

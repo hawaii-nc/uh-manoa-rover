@@ -2,8 +2,8 @@ id: holmes_hall
 name: Holmes Hall
 tier: A
 floors: 5
-wall: '#d2cfc4'
-trim: '#c2bfb4'
+wall: '#cfc8b6'
+trim: '#ebe7dc'
 glass: '#3a4248'
 roof: null
 windows: grid
@@ -13,7 +13,10 @@ shading: lanai
 ground_floor: arcade
 confidence: high
 notes: '1972 engineering building: pale cream-grey concrete, open-air corridors with solid parapets on
-  every floor, columns down to an open ground level. Floor plans show 5 floors plus basement and mezzanine.'
+  every floor, columns down to an open ground level. Floor plans show 4 full floors (levels 100-400) plus
+  a small penthouse (500); the layout of each is built from them. Slab edges and parapets are near-white;
+  the enclosed rooms behind the galleries are a darker pale tan. Corridors: open (Photos 1163_02-04 show
+  open-air galleries with solid parapets on every floor.)'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1163_01.jpg
 - https://map.hawaii.edu/images/MA/building_images/1163_04.jpg
@@ -21,3 +24,4 @@ sources:
 - https://map.hawaii.edu/images/MA/building_images/1163_02.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
 - https://manoa.hawaii.edu/planning/Public/PDF/1163.pdf
+corridors: open

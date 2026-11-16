@@ -52,6 +52,7 @@ class WorldConfig:
     assets: str | None = "cache/assets"  # prepared free models (campus-rover fetch-assets)
     light_poles: dict | None = None     # surveyed pole points: file, status_field, keep
     floor_plans: str | None = None      # URL of per-building floor-plan PDFs, with {number}
+    plans: str | None = "cache/plans"   # registered floor-plan layouts (campus-rover build-plans)
     ground_lines: dict | None = None    # painted lines: file, colour_field, categories
     lidar_res: float = 0.5
     terrain_res: float = 1.0
@@ -418,8 +419,28 @@ def build_world(site, scenario=None, route_key: str | None = None,
             style, source = unverified_style(bid, name), "unverified"
         group = f"buildings/{bid}" if campus else "buildings/background"
         near = [d for d in doors if poly.distance(_point(d)) <= 8.0] if source == "sheet" else []
-        info = generate_building(scene, group, massing, style, door_points=near,
-                                 roof_color=roof_grey(poly, rasters, roof_scale))
+        layout = (_layout_for(site, cfg, props, style.corridors)
+                  if campus and source == "sheet" and style.corridors else None)
+        if layout is not None and has_lidar:
+            from .planbuild import generate_from_plan
+
+            main = max(massing.blocks, key=lambda k: k.polygon.area).height
+            info = generate_from_plan(
+                scene, group, layout, style, rasters.ground_z,
+                massing.base_z + main, massing.base_z + massing.height,
+                flat_roof=not massing.pitched)
+            if massing.pitched and massing.roof is not None:
+                from .buildgen import _pitched_roof
+
+                roof_tint = style.roof or roof_grey(poly, rasters, roof_scale) or "#8c8c88"
+                _pitched_roof(scene.mesh(group, "roof", scene.color_material(
+                    "roof", roof_tint, roughness=0.95, texture="roof_tiles")), massing)
+            info.update(floors=info["levels"], blocks=len(layout.levels), windows=info["windows"],
+                        doors=0, pitched=False, floor_height=info["floor_height"],
+                        plan_layout=layout.quality)
+        else:
+            info = generate_building(scene, group, massing, style, door_points=near,
+                                     roof_color=roof_grey(poly, rasters, roof_scale))
         buildings_report.append({
             "id": bid, "name": name, "tier": tier, "style_source": source, "campus": campus,
             "floors_source": "plan" if any("/planning/" in u for u in style.sources) else
@@ -589,6 +610,20 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "mesh": scene.stats(),
     }
     return World(scene, agents_scene, rasters, surface, bbox, report)
+
+
+def _layout_for(site, cfg, props: dict, corridors: str | None = None):
+    """The registered floor-plan layout of a building, if one is cached and good enough."""
+    number = str(props.get("PROP_NUM") or "")
+    if not cfg.plans or not number:
+        return None
+    path = site.root / cfg.plans / f"{number}.json"
+    if not path.exists():
+        return None
+    from .plans import Layout, layout_ok
+
+    layout = Layout.from_json(json.loads(path.read_text()))
+    return layout if layout_ok(layout.quality, corridors) else None
 
 
 def pole_height(rasters: Rasters, x: float, y: float) -> float | None:

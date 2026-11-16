@@ -12,9 +12,10 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 1963. Light grey with open corridors and white railings on each floor. Floor plans show 6 floors
-  plus basement.
+notes: '1963. Light grey with open corridors and white railings on each floor. Floor plans show 6 floors
+  plus basement. Corridors: open (Photo 1165_01 shows open walkways with white railings on every floor.)'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1165_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
 - https://manoa.hawaii.edu/planning/Public/PDF/1165.pdf
+corridors: open

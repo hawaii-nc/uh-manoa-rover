@@ -17,7 +17,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
 | Map data in | `arcgis.py` (UH map layers), `floorplans.py` (floor counts from UH Planning PDFs), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
-| 3D world | `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
+| 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
 Docs: `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
@@ -31,6 +31,7 @@ Before generating any mesh, texture or attribute (building colours, door positio
 - Procedural looks (`background_style`) are only for background buildings more than `tier_b_m` (120 m) from the route.
 - Every style sheet cites its source. Doors are placed only at mapped door points.
 - `world.json` records each source with its retrieval date and the cross-checks; keep that true.
+- A floor plan is only used to build a building when its style sheet says `corridors: open` or `corridors: enclosed`, taken from a photo. A plan does not say whether a corridor is open to the air; do not guess it. Floor plans and the layouts fitted from them stay in `cache/` (UH asks that they are not passed on); never commit them or UH's photos.
 
 ## Rules that matter
 

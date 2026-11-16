@@ -222,6 +222,54 @@ def cmd_fetch_world_data(args) -> int:  # pragma: no cover - network
     return 0
 
 
+def cmd_build_plans(args) -> int:
+    """Fit every cached floor-plan PDF onto its building and save the layouts."""
+    import json
+
+    from .lidar import Rasters
+    from .plans import build_layout, layout_ok, roof_mask_for
+    from .world import WorldConfig, building_polygon
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    model = site.load_model()
+    rasters = Rasters.load(site.root / cfg.rasters)
+    if cfg.vertical_shift_m:
+        rasters.shift_z(cfg.vertical_shift_m)
+    pdfs = site.root / "cache" / "floorplans"
+    out = site.root / (cfg.plans or "cache/plans")
+    out.mkdir(parents=True, exist_ok=True)
+    x0, y0, x1, y1 = rasters.bounds
+    done = good = 0
+    for b in model.buildings:
+        number = str(b.props.get("PROP_NUM") or "")
+        pdf = pdfs / f"{number}.pdf"
+        if not number or not pdf.exists() or (args.only and number not in args.only):
+            continue
+        poly = building_polygon(b)
+        c = poly.centroid
+        if not (x0 + 5 < c.x < x1 - 5 and y0 + 5 < c.y < y1 - 5):
+            continue
+        mask, mx, my = roof_mask_for(poly, rasters)
+        if not mask.any():
+            continue
+        layout = build_layout(pdf, number, mask, mx, my, 1.0, (c.x, c.y))
+        if layout is None:
+            print(f"{number:<7}{b.name[:34]:<36}no layout")
+            continue
+        done += 1
+        ok = layout_ok(layout.quality)
+        good += ok
+        q = layout.quality
+        print(f"{number:<7}{(b.name or '')[:34]:<36}{'OK ' if ok else 'no '} levels {q['levels']}"
+              f" score {q['min_score']:.2f} agree {q['min_agreement']:.2f}"
+              f" extent {q['extent_error_m']:.0f}m angle {q['angle_deg']:.0f}"
+              f" cols {q['column_aligned_sheets']}/{q['column_alignment_needed']}")
+        (out / f"{number}.json").write_text(json.dumps(layout.to_json()))
+    print(f"{good} of {done} floor-plan layouts are good enough to build from")
+    return 0
+
+
 def cmd_fetch_assets(args) -> int:  # pragma: no cover - network
     from .assets import fetch_assets
     from .world import WorldConfig
@@ -375,6 +423,12 @@ def build_parser() -> argparse.ArgumentParser:
     data.add_argument("--site", required=True)
     data.add_argument("--force", action="store_true", help="re-download what is already cached")
     data.set_defaults(func=cmd_fetch_world_data)
+
+    plans = sub.add_parser("build-plans",
+                           help="fit the cached floor-plan PDFs onto their buildings")
+    plans.add_argument("--site", required=True)
+    plans.add_argument("--only", nargs="*", help="building numbers to do (default: all cached)")
+    plans.set_defaults(func=cmd_build_plans)
 
     models = sub.add_parser("fetch-assets", help="download the free 3D models (benches, lights)")
     models.add_argument("--site", required=True)

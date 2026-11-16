@@ -30,6 +30,7 @@ Every shape, position and colour near the route comes from a named data source. 
 | Parking-stall and sports-field lines | UH basemap lines, with their colours | No lines |
 | Building footprints | UH campus map; City and County of Honolulu footprints; OpenStreetMap | Building is not built |
 | Building shape and roof type | Lidar roof heights inside each footprint | One box at the mapped height |
+| Floor layout (slabs, courtyards, open galleries, room blocks, columns) | UH floor plans fitted onto the lidar roof, for buildings whose style sheet says how their corridors work (6 so far) | Roof-level blocks from the lidar, as before |
 | Wall colour, windows, shading, ground floor | A style sheet citing UH's photo of that building | **Plain grey shape, no windows** (`unverified`) |
 | Number of floors | UH Planning's floor-plan PDFs: one sheet per level (76 of the 95 buildings) | The photo, when it shows the floors; otherwise the measured height |
 | Roof colour | The photo, when it shows the roof; otherwise a grey whose lightness is the measured lidar brightness of that roof | Neutral grey |
@@ -100,6 +101,7 @@ campus-rover view --dir out/uh_manoa
 
 - `fetch-layers` downloads the UH campus map layers (buildings, trees, props, doors).
 - `fetch-world-data` downloads walkways and roads, six lidar tiles (about 315 MB), and the official open data listed below. Downloads go to `sites/uh_manoa/cache/`, which is not in git.
+- `build-plans` fits UH's floor-plan PDFs (cached in `cache/floorplans/` by earlier floor-count runs) onto their buildings and saves the layouts to `cache/plans/`. Run it before `build-world` to build from plans.
 - `fetch-assets` downloads the free 3D models listed in `assets.py`. Without them the build still works and uses simple stand-in shapes.
 - `build-world` takes about 40 seconds and writes:
 
@@ -116,6 +118,41 @@ The demo campus builds with no downloads: `campus-rover build-world --site demo_
 ### In Isaac Sim
 
 Open `world.usdc`, add `agents_class_change.usdc` as a sublayer or reference, add a Physics Scene, and drop in the rover. Site coordinates are recentred; the offset is stored in the layer metadata as `campus:originOffset`.
+
+## Buildings built from their floor plans
+
+Most buildings are an extruded outline with windows painted on. For six buildings the world is built from what UH's floor plans actually show, one floor at a time: **Holmes Hall, Architecture, Information Technology Center, Hawaiʻi Institute of Geophysics, Watanabe Hall and POST**.
+
+| Holmes Hall from the south | Holmes Hall from the north |
+|---|---|
+| ![south](img/plan_holmes_south.jpg) | ![north](img/plan_holmes_north.jpg) |
+
+| Architecture building | Holmes Hall as training labels |
+|---|---|
+| ![architecture](img/plan_architecture.jpg) | ![labels](img/plan_holmes_labels.jpg) |
+
+(Trees are hidden in these views so the buildings can be seen.)
+
+**What a floor plan gives that a photo and a roof cannot:**
+- the real outline of every floor, with courtyard voids and the setbacks between levels;
+- which parts of a floor have walls (rooms) and which are open (circulation), so Holmes Hall comes out as a concrete frame of open galleries with rooms in blocks, not a solid slab;
+- the structural column grid, at its drawn positions;
+- the number of full floors and any penthouse.
+
+**How a plan is placed on the world** (`plans.py`, command `campus-rover build-plans`):
+1. Each sheet is a vector drawing at a stated scale. Its room shapes are read directly.
+2. The sheet is turned and slid over the building's lidar roof until the two agree. Sheets are drawn north-up or a quarter turn away, and all sheets of a building must share one angle. A sheet named East must end up in the east half.
+3. A sheet named East meets the building's east end, which removes a one-bay (about 9 m) ambiguity in long repetitive buildings like Holmes.
+4. Every level is shifted so its columns sit on the columns of the top full floor, because a building's structure stacks. On Holmes, 14–16 of the roughly 21 columns on each upper sheet land within 0.35 m of a ground-level column once shifted, which confirms the placement.
+5. East and west halves are joined in the middle of their overlap.
+
+**What is checked:** every full floor must agree with the roof (fit score at least 0.6, at least 85 % of the plan on a roof), the stacked slabs must reach the roof's extent to within 6 m, and each full floor must find the column grid. Of 75 buildings with plans, 34 pass.
+
+**Why only six are used:** a plan labels a space "corridor", but not whether that corridor is open to the air or inside the walls. That decides whether you see a railing or a wall, and the plan does not say. It is read from the photos and recorded in each style sheet as `corridors: open` or `corridors: enclosed`. Holmes Hall, the Geophysics building and Watanabe Hall are open (photos show galleries and balconies); Architecture, the IT Center and POST are enclosed (photos show continuous windows or curtain walls). The other 28 buildings with a good fit have no such statement yet, so they stay on the roof-based model until someone has looked at their photos. Say which and I will.
+
+**What is not from the plans:** wall and trim colours and the window pattern (photos), floor heights (the lidar main roof shared equally between the floors: 5.0 m on Holmes, 3.9 m on Architecture), and the windows themselves (a generic band on each room wall; the plans do not show windows). Doors are still only placed at UH's mapped door points, and the plans' interiors are not built.
+
+**Known limits.** Placement is good to about ±3 m: the stacked slabs' extents match the roof to 3.7 m on Holmes and to 5.4 m on Architecture, and part of that is roof overhang. A building that is nearly symmetrical could in principle fit equally well turned half a circle; the East/West naming and the column grid guard against it, but cannot rule it out for a symmetrical single sheet. Architecture's mostly open ground-floor sheet cannot be aligned by columns, so its ground floor takes the footprint of the floor above (a solid base, as in UH's photos). The plans are for information only and UH asks that they stay private, so the PDFs and the fitted layouts stay in `cache/` and out of this repository.
 
 ## Free 3D models
 
@@ -142,6 +179,10 @@ The same technique works on imagery you are allowed to use: a 360° photo with k
 ### Building photos
 
 UH's campus map serves several photos per building (`<number>_01.jpg`, `_02.jpg`, ...). Every style sheet cites the ones it was read from; Holmes Hall, Campus Center and the Architecture building use three to five each. Wikimedia Commons was also tried as a second source, but it rate-limits the cloud build session, so no Commons photos are used yet.
+
+## The viewer
+
+`index.html` has shadows (one sun over the whole corridor), which show the recesses of open galleries. URL options, used for screenshots: `?hide=tree,person` hides classes, `?sun=x,y,z` moves the sun, `?shadows=0` turns shadows off, `?labels=1` shows training labels, `?rover=0.4` puts the camera on the route at that fraction.
 
 ## Scenarios
 

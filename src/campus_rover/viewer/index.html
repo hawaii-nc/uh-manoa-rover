@@ -42,17 +42,26 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffe
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.8;
+renderer.toneMappingExposure = 1.15;
+const shadowsOn = q.get('shadows') !== '0';
+if (shadowsOn) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const sky = new THREE.Color(0x9fc4e8);
 scene.background = sky;
 scene.fog = new THREE.Fog(sky, 250, 1400);
-scene.add(new THREE.HemisphereLight(0xdfeeff, 0x6b7355, 0.75));
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));   // keeps undersides from going black
-const sun = new THREE.DirectionalLight(0xfff2dc, 1.9);
+scene.add(new THREE.HemisphereLight(0xeaf3ff, 0x8a8470, 0.9));
+scene.add(new THREE.AmbientLight(0xffffff, 0.2));   // keeps undersides from going black
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
 sun.position.set(300, 500, 200);
+if (q.has('sun')) sun.position.set(...q.get('sun').split(',').map(Number));   // ?sun=x,y,z
+if (shadowsOn) {                       // one sun shadow over the whole corridor
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  Object.assign(sun.shadow.camera, { left: -520, right: 520, top: 520, bottom: -520, near: 10, far: 1600 });
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.35;
+}
 scene.add(sun);
 
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 4000);
@@ -83,6 +92,7 @@ function prepare(root) {
     if (o.material.map) o.material.map.anisotropy = 8;      // keeps ground textures sharp at low angles
     o.userData.label = new THREE.MeshBasicMaterial({ color: LABEL[cls] ?? 0x9e9e9e,
       side: cls === 'tree' ? THREE.DoubleSide : THREE.FrontSide });
+    o.castShadow = true; o.receiveShadow = true;
     meshes.push(o);
   });
 }
@@ -138,6 +148,10 @@ async function main() {
   info.textContent = `${report.site}: ${report.size_m[0]} × ${report.size_m[1]} m · ${b} buildings · ${t} trees · ` +
     `${report.mesh.triangles.toLocaleString()} triangles. Drag to look, scroll to zoom, right-drag to move.`;
 
+  if (q.has('hide')) {                    // ?hide=tree,person  hides those classes (for inspection)
+    const hidden = q.get('hide').split(',');
+    for (const m of meshes) if (hidden.includes(m.userData.cls)) m.visible = false;
+  }
   if (q.get('labels') === '1') setLabels(true);
   if (q.get('noroute') === '1' && routeLine) { routeLine.visible = false; press('route', false); }
   if (q.get('ui') === '0') { document.getElementById('bar').style.display = 'none'; info.style.display = 'none'; }
