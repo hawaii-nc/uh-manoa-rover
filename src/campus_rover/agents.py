@@ -247,6 +247,8 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
         length = math.dist((ax, ay), (bx, by))
         if length < 0.5 or data.get("closed") or not (inside(ax, ay) and inside(bx, by)):
             continue
+        if data.get("kind") == "crosswalk" and data.get("tier") == "candidate":
+            continue                  # only a suggested line across a road: nobody walks there
         roadside = data.get("zone") == "roadside"
         density = max(crowd.density(u, v, when) * scenario.people_scale,
                       scenario.min_people_per_100m * (0.3 if roadside else 1.0))

@@ -371,7 +371,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
     walk_lines = []
     if graph is not None:
         walk_lines = [([graph.xy(u), graph.xy(v)], 3.0) for u, v, d in graph.g.edges(data=True)
-                      if d.get("zone") != "roadside"]
+                      if d.get("zone") != "roadside" and d.get("tier") != "candidate"]
         if not segments:
             road_lines = [([graph.xy(u), graph.xy(v)], 6.0)
                           for u, v, d in graph.g.edges(data=True) if d.get("zone") == "roadside"]

@@ -549,6 +549,8 @@ def cmd_build_explorer(args) -> int:
         path = site.root / "scenarios" / f"{args.scenario}.yaml"
         scenario = Scenario.from_dict(yaml.safe_load(path.read_text())) if path.exists() \
             else Scenario(name=args.scenario)
+    if scenario is not None:
+        scenario.people_scale *= args.people_scale
     world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."),
                         lite=True)
     files = build_explorer(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."),
@@ -655,6 +657,8 @@ def build_parser() -> argparse.ArgumentParser:
     expl.add_argument("--out", required=True, help="output folder")
     expl.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
     expl.add_argument("--route", help="route key that defines the corridor (default: last)")
+    expl.add_argument("--people-scale", type=float, default=1.0,
+                      help="multiply the crowd (the hosted page has 64 MiB for everything)")
     expl.add_argument("--hosted", action="store_true",
                       help="store the 3D files as base64 text chunks, for page hosts that "
                            "serve only text, images and fonts")
