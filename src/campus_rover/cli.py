@@ -512,7 +512,8 @@ def cmd_build_explorer(args) -> int:
             else Scenario(name=args.scenario)
     world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."),
                         lite=True)
-    files = build_explorer(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."))
+    files = build_explorer(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."),
+                           max_file_mb=64 if args.hosted else 20, hosted=args.hosted)
     total = 0.0
     for name, path in files.items():
         size = path.stat().st_size / 1e6
@@ -615,6 +616,9 @@ def build_parser() -> argparse.ArgumentParser:
     expl.add_argument("--out", required=True, help="output folder")
     expl.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
     expl.add_argument("--route", help="route key that defines the corridor (default: last)")
+    expl.add_argument("--hosted", action="store_true",
+                      help="store the 3D files as base64 text chunks, for page hosts that "
+                           "serve only text, images and fonts")
     expl.set_defaults(func=cmd_build_explorer)
 
     data = sub.add_parser("fetch-world-data",

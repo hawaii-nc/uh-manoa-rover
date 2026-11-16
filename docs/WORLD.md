@@ -245,6 +245,8 @@ UH's campus map serves several photos per building (`<number>_01.jpg`, `_02.jpg`
 - **Things to check** (97 on the corridor): the blocked stretches and the 9.7 m break on the Holmes → Campus Center → Architecture route, the 37 gap links, crosswalks with unknown curb cuts, steep walkways, construction closures, grey buildings, buildings built from floor plans, and low-confidence style sheets. Each can be marked looks right / looks wrong / unsure with a note; marks are kept in the browser (ids are stable across rebuilds) and **Copy my notes** puts them on the clipboard as JSON.
 - Building list with facts and source links, a minimap that teleports, and route playback from the rover camera.
 
+`--hosted` stores the 3D files as base64 text chunks (about a third larger, 65 MB in all) for page hosts that serve only text, images and fonts, which is how the published copy is made.
+
 The explorer is for finding what is wrong, so it lists the model's own doubts rather than hiding them. Floor-plan layouts are part of the six plan-built buildings' geometry: publish the page only to people UH's plan terms allow.
 
 ## Scenarios

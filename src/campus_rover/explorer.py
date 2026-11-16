@@ -59,10 +59,27 @@ class _Frame:
         return [round(x - self.ox, 1), round(z - self.oz + lift, 2), round(-(y - self.oy), 1)]
 
 
+def pack_text(path: Path, chunk_bytes: int = 12_000_000) -> list[Path]:
+    """Replace a binary file by base64 text chunks (`name.000.txt`, ...). Page hosts that only
+    serve text, images and fonts can then carry it; the page decodes the chunks back."""
+    import base64
+
+    raw = path.read_bytes()
+    chunk_bytes -= chunk_bytes % 3                    # whole base64 groups, so chunks just join
+    out = []
+    for i in range(0, len(raw), chunk_bytes):
+        part = path.with_name(f"{path.stem}.{i // chunk_bytes:03d}.txt")
+        part.write_text(base64.b64encode(raw[i:i + chunk_bytes]).decode("ascii"))
+        out.append(part)
+    path.unlink()
+    return out
+
+
 def build_explorer(site, world: World, out_dir: Path, progress=lambda msg: None,
-                   max_file_mb: float = 20) -> dict:
+                   max_file_mb: float = 20, hosted: bool = False) -> dict:
     """Write the explorer bundle for a built (ideally `lite`) world. Returns the files.
-    A file over `max_file_mb` (the page host's limit is 20 MiB) is an error."""
+    A file over `max_file_mb` (the page host's limit is 20 MiB) is an error. `hosted` stores
+    the 3D files as base64 text chunks, for hosts that cannot serve binary files."""
     out_dir.mkdir(parents=True, exist_ok=True)
     files: dict[str, Path] = {}
     for name, keep in split_files().items():
@@ -86,6 +103,12 @@ def build_explorer(site, world: World, out_dir: Path, progress=lambda msg: None,
     data["files"] = {"ground": "world_ground.glb", "structures": "world_structures.glb",
                      "objects": "world_objects.glb", "agents": agents_file}
     data["sizes_mb"] = {n: round(s / 1e6, 1) for n, s in sizes.items()}
+    if hosted:
+        for key, name in list(data["files"].items()):
+            if name:
+                parts = pack_text(files.pop(name))
+                data["files"][key] = [p.name for p in parts]
+                files.update({p.name: p for p in parts})
     files["data.json"] = out_dir / "data.json"
     files["data.json"].write_text(json.dumps(data, separators=(",", ":")))
 

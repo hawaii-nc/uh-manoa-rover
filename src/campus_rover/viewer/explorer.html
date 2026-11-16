@@ -276,8 +276,21 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 // ---------------------------------------------------------------- loading
 const gltf = new GLTFLoader();
-function loadFile(url, onProgress) {
-  return new Promise((ok, fail) => gltf.load(url, (g) => ok(g.scene), (e) => e.total && onProgress(e.loaded / e.total), fail));
+// A file is a .glb, or a list of base64 text chunks (the hosted copy) that join into one.
+async function loadFile(spec, onProgress) {
+  if (!Array.isArray(spec)) {
+    return new Promise((ok, fail) => gltf.load(spec, (g) => ok(g.scene), (e) => e.total && onProgress(e.loaded / e.total), fail));
+  }
+  const bufs = [];
+  for (let i = 0; i < spec.length; i++) {
+    const bin = atob((await (await fetch(spec[i])).text()).trim());
+    const u = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+    bufs.push(u); onProgress((i + 1) / spec.length);
+  }
+  const all = new Uint8Array(bufs.reduce((n, b) => n + b.length, 0));
+  let at = 0; for (const b of bufs) { all.set(b, at); at += b.length; }
+  return new Promise((ok, fail) => gltf.parse(all.buffer, '', (g) => ok(g.scene), fail));
 }
 function prepare(root, receive = true) {
   root.traverse((o) => {
