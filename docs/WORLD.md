@@ -236,6 +236,17 @@ UH's campus map serves several photos per building (`<number>_01.jpg`, `_02.jpg`
 
 `index.html` has shadows (one sun over the whole corridor), which show the recesses of open galleries. URL options, used for screenshots: `?hide=tree,person` hides classes, `?sun=x,y,z` moves the sun, `?shadows=0` turns shadows off, `?labels=1` shows training labels, `?rover=0.4` puts the camera on the route at that fraction.
 
+## The explorer (walk through it and check it)
+
+`campus-rover build-explorer --site uh_manoa --out out/explorer --scenario class_change` writes a folder that opens in any browser (`campus-rover view --dir out/explorer`) and can be published as a page. It is a lighter copy of the world (`build_world(lite=True)`: textures on the ground only, simpler tree crowns, no painted ground lines) split into three GLB files plus agents, each under the 20 MiB page limit, with the data in `data.json`:
+
+- **Fly, Walk (eye 1.7 m) and Rover (camera 0.7 m).** Walking stands on the real ground mesh, cannot enter buildings, and the rover cannot climb a step above 12 cm, so curbs and stairs stop it and the status bar says why. Drawn geometry decides this: where stairs are modelled as a smooth slope, the rover rolls up them.
+- **Network overlay** by connected piece, kind, grade, or rover can / cannot; **look** as real, "can a rover go here?" or class colours; click any surface for its class, building, ground grade and site coordinates.
+- **Things to check** (97 on the corridor): the blocked stretches and the 9.7 m break on the Holmes → Campus Center → Architecture route, the 37 gap links, crosswalks with unknown curb cuts, steep walkways, construction closures, grey buildings, buildings built from floor plans, and low-confidence style sheets. Each can be marked looks right / looks wrong / unsure with a note; marks are kept in the browser (ids are stable across rebuilds) and **Copy my notes** puts them on the clipboard as JSON.
+- Building list with facts and source links, a minimap that teleports, and route playback from the rover camera.
+
+The explorer is for finding what is wrong, so it lists the model's own doubts rather than hiding them. Floor-plan layouts are part of the six plan-built buildings' geometry: publish the page only to people UH's plan terms allow.
+
 ## Scenarios
 
 A scenario is a small file in `sites/<site>/scenarios/`:

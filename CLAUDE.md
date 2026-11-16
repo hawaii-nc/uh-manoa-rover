@@ -8,6 +8,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 - Check: `pytest -q && ruff check .` (line length 100; both must pass before a commit)
 - Route planner: `campus-rover plan --site demo_campus --route A --time "Mon 09:20"`
 - 3D world: `campus-rover build-world --site uh_manoa --out out/uh_manoa --scenario class_change` (needs `fetch-layers` and `fetch-world-data` first; `demo_campus` needs neither)
+- Map explorer (a page to walk through and check the model): `campus-rover build-explorer --site uh_manoa --out out/explorer --scenario class_change`, then `campus-rover view --dir out/explorer`
 
 ## Map of the code
 
@@ -19,6 +20,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
 | Rover network | `walknet.py` (surveyed walkway network), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
 | 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
+| Explorer page | `explorer.py` (split GLBs, `data.json`: network, routes, buildings, things to check) + `viewer/explorer.html` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
 Docs: `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).

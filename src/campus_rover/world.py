@@ -216,7 +216,7 @@ def add_terrain(scene: Scene, rasters: Rasters, surface: np.ndarray, res: float,
 
 
 def add_tree(scene: Scene, x, y, z, height, radius, trunk_d, family: str, habit: str,
-             seed: int) -> None:
+             seed: int, max_detail: int = 2) -> None:
     bark = scene.material("bark", (0.45, 0.36, 0.27), texture="bark")
     greens = [(0.20, 0.44, 0.17), (0.27, 0.51, 0.20), (0.16, 0.37, 0.18), (0.34, 0.54, 0.22)]
     leaves = scene.material(f"leaves_{seed % 4}", greens[seed % 4], texture="grass")
@@ -247,7 +247,7 @@ def add_tree(scene: Scene, x, y, z, height, radius, trunk_d, family: str, habit:
                    top_radius=min(max(trunk_d / 2, 0.09), 0.9) * 0.7)
     crown.blob((x, y, z + trunk_h + (height - trunk_h) * 0.5),
                (radius, radius, (height - trunk_h) * 0.55), seed=seed,
-               detail=2 if radius > 5 else 1, wobble=0.14)
+               detail=min(2 if radius > 5 else 1, max_detail), wobble=0.14)
 
 
 PROP_SHAPES = {
@@ -308,7 +308,9 @@ class World:
 
 
 def build_world(site, scenario=None, route_key: str | None = None,
-                progress=lambda msg: None) -> World:
+                progress=lambda msg: None, lite: bool = False) -> World:
+    """Build the world. `lite` makes a lighter copy for sharing: simpler tree crowns and no
+    painted ground lines (the same ground, buildings and data)."""
     from shapely.geometry import LineString
 
     cfg = WorldConfig.from_site(site)
@@ -361,7 +363,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
         surface = np.where(covered, grid, surface).astype(np.uint8)
         ground_report = add_landcover(scene, features, rasters, bbox)
         lines_cfg = cfg.ground_lines or {}
-        if lines_cfg and (site.root / lines_cfg["file"]).exists():
+        if lines_cfg and not lite and (site.root / lines_cfg["file"]).exists():
             ground_report["painted_line_segments"] = add_painted_lines(
                 scene, load_ground_lines(site.root / lines_cfg["file"], lines_cfg), rasters, bbox)
     # Lidar-classified terrain fills whatever the land-cover layer does not cover.
@@ -463,7 +465,14 @@ def build_world(site, scenario=None, route_key: str | None = None,
             "abbrev": props.get("ABBREV2") or props.get("ABBREV1"),
             "route_distance_m": None if dist is None else round(dist, 1),
             "height_m": round(massing.height, 1), "base_z": round(massing.base_z, 1),
-            "year": _int(props.get("YEAR_BUILT")), "footprint_m2": round(poly.area), **info,
+            "year": _int(props.get("YEAR_BUILT")), "footprint_m2": round(poly.area),
+            "number": props.get("PROP_NUM"), "sqft": _int(props.get("SQ_FT")),
+            "centroid": [round(c.x, 1), round(c.y, 1)],
+            "ring": [[round(x, 1), round(y, 1)] for x, y in poly.simplify(0.8).exterior.coords],
+            "style": {"confidence": style.confidence, "corridors": style.corridors,
+                      "windows": style.windows, "wall": style.wall,
+                      "notes": (style.notes or "")[:500], "sources": list(style.sources)},
+            **info,
         })
 
     campus_polys = []
@@ -540,7 +549,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
         radius = float(min(max(p.get("canopy_radius_m") or height * 0.3, 0.6), 14.0))
         add_tree(scene, x, y, z, height, radius, float(p.get("trunk_diameter_m") or 0.3),
                  str(p.get("family") or ""), str(p.get("habit") or ""),
-                 _seed(round(x, 1), round(y, 1)))
+                 _seed(round(x, 1), round(y, 1)), max_detail=1 if lite else 2)
         n_trees += 1
 
     from .assets import load_assets
@@ -735,7 +744,7 @@ def texture_info() -> dict:
     return json.loads((TEXTURE_DIR / "textures.json").read_text())
 
 
-def part_arrays(scene: Scene, key, tiles: dict):
+def part_arrays(scene: Scene, key, tiles: dict, textured: bool = True):
     """(positions, faces, uv or None) for one part, in local Z-up meters.
 
     Ground parts keep their vertices and get top-down texture coordinates. Other
@@ -745,7 +754,7 @@ def part_arrays(scene: Scene, key, tiles: dict):
     verts, faces = scene.parts[key].arrays()
     local = verts - np.asarray(scene.origin)
     texture = scene.materials[material].get("texture")
-    if texture is None or len(faces) == 0:
+    if texture is None or len(faces) == 0 or not textured:
         return local, faces, None
     tile = float(tiles[texture]["tile_m"])
     if group.split("/")[0] in PLANAR_GROUPS:
@@ -765,9 +774,15 @@ def part_arrays(scene: Scene, key, tiles: dict):
     return tri.reshape(-1, 3), np.arange(len(tri) * 3).reshape(-1, 3), uv
 
 
-def export_glb(scene: Scene, path: Path) -> None:
+def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
+               instances: bool = True) -> None:
     """Binary glTF with embedded textures. glTF is Y-up, so (x, y, z) is written as
-    (x, z, -y). Node names are "group|class|material", which the viewer reads back."""
+    (x, z, -y). Node names are "group|class|material", which the viewer reads back.
+
+    `lite` keeps textures on the ground only (walls and roofs become flat colour, which
+    also lets their vertices be shared: the file is far smaller). `only(key)` keeps just
+    the parts whose (group, class, material) key it accepts; `instances=False` leaves out
+    shared models."""
     import struct
 
     tiles = texture_info()
@@ -796,13 +811,14 @@ def export_glb(scene: Scene, path: Path) -> None:
         accessors.append(entry)
         return len(accessors) - 1
 
-    def material_id(name: str) -> int:
-        if name in material_index:
-            return material_index[name]
+    def material_id(name: str, textured: bool = True) -> int:
+        key = (name, textured)
+        if key in material_index:
+            return material_index[key]
         m = scene.materials[name]
         pbr = {"baseColorFactor": [*m["color"], m["opacity"]],
                "roughnessFactor": m["roughness"], "metallicFactor": m["metallic"]}
-        if m.get("texture"):
+        if m.get("texture") and textured:
             tex = m["texture"]
             if tex not in texture_index:
                 data = (TEXTURE_DIR / f"{tex}.jpg").read_bytes()
@@ -811,11 +827,14 @@ def export_glb(scene: Scene, path: Path) -> None:
                 texture_index[tex] = len(textures) - 1
             pbr["baseColorTexture"] = {"index": texture_index[tex]}
         materials.append({"name": name, "pbrMetallicRoughness": pbr})
-        material_index[name] = len(materials) - 1
-        return material_index[name]
+        material_index[key] = len(materials) - 1
+        return material_index[key]
 
     for key in sorted(scene.parts):
-        pos, faces, uv = part_arrays(scene, key, tiles)
+        if only is not None and not only(key):
+            continue
+        textured = (not lite) or key[0].split("/")[0] in PLANAR_GROUPS
+        pos, faces, uv = part_arrays(scene, key, tiles, textured)
         if len(faces) == 0:
             continue
         yup = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]].astype(np.float32)
@@ -825,13 +844,14 @@ def export_glb(scene: Scene, path: Path) -> None:
         indices = accessor(faces.astype(np.uint32).ravel(), "SCALAR", 5125, 34963)
         name = "|".join(key)
         meshes.append({"name": name, "primitives": [{
-            "attributes": attributes, "indices": indices, "material": material_id(key[2])}]})
+            "attributes": attributes, "indices": indices,
+            "material": material_id(key[2], textured)}]})
         nodes.append({"name": name, "mesh": len(meshes) - 1})
 
     # Shared models: each written once, then one node per placement.
     ox, oy, oz = scene.origin
     asset_mesh: dict[str, int] = {}
-    for inst in scene.instances:
+    for inst in (scene.instances if instances else []):
         asset = scene.assets[inst.asset]
         if inst.asset not in asset_mesh:
             prims = []

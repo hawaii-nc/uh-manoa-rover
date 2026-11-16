@@ -15,6 +15,8 @@ The 3D world looks like UH. A rover model trained in it has to *drive* on campus
 
 Details and commands are in [WORLD.md](WORLD.md#for-the-rover-network-traversability-physics).
 
+To check all of this against the real campus, use the explorer (`campus-rover build-explorer`, see [WORLD.md](WORLD.md#the-explorer-walk-through-it-and-check-it)): it walks the map as a person or as the rover and lists what to verify.
+
 ## 1. What the current world is, measured (before items 1–4)
 
 | Question | Measured | What it means |

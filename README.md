@@ -19,7 +19,7 @@ A camera-only autonomous rover that learns to navigate the University of Hawaiʻ
 
 ## New: the 3D training world
 
-`campus-rover build-world` builds a labelled 3D world of the route corridor (Holmes Hall → Campus Center → Architecture) from open data: lidar terrain and roof shapes, UH's campus map, official Honolulu and State data, a photo-based style sheet for each of the 95 campus buildings, 2,057 surveyed trees, and people, bikes and cars placed by the crowd model. It exports USD for Isaac Sim and a browser viewer. See **[docs/WORLD.md](docs/WORLD.md)**.
+`campus-rover build-world` builds a labelled 3D world of the route corridor (Holmes Hall → Campus Center → Architecture) from open data: lidar terrain and roof shapes, UH's campus map, official Honolulu and State data, a photo-based style sheet for each of the 95 campus buildings, 2,057 surveyed trees, and people, bikes and cars placed by the crowd model. It exports USD for Isaac Sim and a browser viewer, and `campus-rover build-explorer` makes a page where you can walk the map as a person or the rover and mark what looks wrong. See **[docs/WORLD.md](docs/WORLD.md)**.
 
 | From above | Rover camera, as labels |
 |---|---|

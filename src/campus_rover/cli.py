@@ -495,6 +495,34 @@ def cmd_build_world(args) -> int:
     return 0
 
 
+def cmd_build_explorer(args) -> int:
+    """Write a folder that opens in a browser: the world split into shareable files, the rover
+    network, routes, buildings and a list of things to check against the real campus."""
+    import yaml
+
+    from .agents import Scenario
+    from .explorer import build_explorer
+    from .world import build_world
+
+    site = load_site(args.site, args.sites_dir)
+    scenario = None
+    if args.scenario:
+        path = site.root / "scenarios" / f"{args.scenario}.yaml"
+        scenario = Scenario.from_dict(yaml.safe_load(path.read_text())) if path.exists() \
+            else Scenario(name=args.scenario)
+    world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."),
+                        lite=True)
+    files = build_explorer(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."))
+    total = 0.0
+    for name, path in files.items():
+        size = path.stat().st_size / 1e6
+        total += size
+        print(f"  {name:<24}{size:>7.1f} MB")
+    print(f"explorer: {total:.1f} MB in {args.out}  (serve with: campus-rover view --dir "
+          f"{args.out} --port 8000)")
+    return 0
+
+
 def cmd_build_model(args) -> int:
     site = load_site(args.site, args.sites_dir)
     model = site.load_model()
@@ -580,6 +608,14 @@ def build_parser() -> argparse.ArgumentParser:
     world.add_argument("--route", help="route key that defines the corridor (default: last)")
     world.add_argument("--no-usd", action="store_true", help="skip the USD files")
     world.set_defaults(func=cmd_build_world)
+
+    expl = sub.add_parser("build-explorer",
+                          help="build a browser page to walk through the map and check it")
+    expl.add_argument("--site", required=True)
+    expl.add_argument("--out", required=True, help="output folder")
+    expl.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
+    expl.add_argument("--route", help="route key that defines the corridor (default: last)")
+    expl.set_defaults(func=cmd_build_explorer)
 
     data = sub.add_parser("fetch-world-data",
                           help="download walkways, roads, footprints and lidar for build-world")
