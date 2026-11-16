@@ -4,7 +4,18 @@
 
 The 3D world looks like UH. A rover model trained in it has to *drive* on campus, so the question is different: does the world behave like the campus when a camera looks at it from 0.7 m, when wheels roll on it, and when people walk through it? This document measures that and lists what to build, in order.
 
-## 1. What the current world is, measured
+## Progress (2026-11-16): items 1–4 built
+
+| Item | State | What it found |
+|---|---|---|
+| 1. Walkway network from the survey | Built (`build-walknet`) | 27.9 km of centerline in 86 pieces. **Holmes Hall and Campus Center are connected; the Architecture side is a separate piece** and the two come no closer than 9.7 m. For a rover (no stairs, grade up to 8.3 %, closures respected), Holmes → Campus Center has 2 blocked stretches of 7 m each, and Campus Center → Architecture has no route at all. |
+| 2. Traversability labels | Built (`build-traversal`) | 11 % of the mapped ground is traversable, 47 % conditional (lawn, road), 43 % blocked. 15 % of surveyed walkway is too steep for the 8.3 % limit. |
+| 3. Terrain a wheel can feel | Partly | The lidar **cannot resolve curb height** (sidewalk reads +4.6 cm above road against a ±3.5 cm noise floor), so 15 cm stays an assumption. The survey has **no curb-cut evidence** at any crosswalk. Slab joints and cracks cannot be sourced; they remain domain-randomisation hooks. |
+| 4. Collision and friction | Built (`physics.py`) | 69 % of scene triangles collide (954k of 1.39M); roofs, windows, crowns, road paint and agents no longer do. Friction per surface is a **placeholder table** to calibrate with the rover. Untested in Isaac Sim. |
+
+Details and commands are in [WORLD.md](WORLD.md#for-the-rover-network-traversability-physics).
+
+## 1. What the current world is, measured (before items 1–4)
 
 | Question | Measured | What it means |
 |---|---|---|

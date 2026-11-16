@@ -12,6 +12,8 @@ origin: {lat: 21.2990, lon: -157.8170}
 graph:
   source: file
   path: graph.osm.yaml
+  # Network of surveyed walkways (campus-rover build-walknet); preferred when present.
+  walk_path: cache/graph.walk.yaml
   osm:
     # Generous bounding box around campus (west, south, east, north).
     # Approximate. Tighten it after the first import.
@@ -94,8 +96,8 @@ world:
       Parking lots: road
       Walkways: walkway
       Hardscape cement: walkway
-      Stepstones: walkway
-      Buildings: walkway          # the slab under a building
+      Stepstones: stepstone       # stones set in lawn: not a continuous path
+      Buildings: building_slab    # the slab under a building: not walkable network
       Ramp: ramp
       Stairs: stairs
       Curbs: curb

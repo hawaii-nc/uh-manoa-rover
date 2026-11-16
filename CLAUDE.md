@@ -17,6 +17,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
 | Map data in | `arcgis.py` (UH map layers), `floorplans.py` (floor counts from UH Planning PDFs), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
+| Rover network | `walknet.py` (surveyed walkway network), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
 | 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
@@ -32,6 +33,13 @@ Before generating any mesh, texture or attribute (building colours, door positio
 - Every style sheet cites its source. Doors are placed only at mapped door points.
 - `world.json` records each source with its retrieval date and the cross-checks; keep that true.
 - A floor plan is only used to build a building when its style sheet says `corridors: open` or `corridors: enclosed`, taken from a photo. A plan does not say whether a corridor is open to the air; do not guess it. Floor plans and the layouts fitted from them stay in `cache/` (UH asks that they are not passed on); never commit them or UH's photos.
+
+## Rules for the rover network
+
+- Never turn "no evidence" into "no": a crossing's `curb_cut` is `True` only with evidence (a mapped ramp or a gap in the curb), otherwise `None` (unknown), and the planner only refuses `False`.
+- When there is no passable route, say why (`blockers`) and where; do not relax a limit or add a link to make one appear. Each assumption is named in `WalkParams` or `Limits`.
+- Friction values in `physics.py` are placeholders until measured with the real rover; curb height (15 cm) is an assumption because the lidar cannot resolve it.
+- Close hairline gaps *before* removing blocked shapes, and erase blocked shapes from the raster: rasterising bleeds a cell, which would bridge a 0.3 m wall.
 
 ## Rules that matter
 

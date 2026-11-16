@@ -20,6 +20,8 @@ EDGE_DEFAULTS = {
     "closed": False,
     "closed_reason": None,
 }
+# Optional edge facts a surveyed network carries; saved only when present.
+EXTRA_EDGE_KEYS = ("width", "width_min", "surface", "curb_cut", "gap", "grade_max", "source")
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,9 @@ class CampusGraph:
             for key, default in EDGE_DEFAULTS.items():
                 if a.get(key, default) != default and key not in ("closed", "closed_reason"):
                     entry[key] = a[key]
+            for key in EXTRA_EDGE_KEYS:
+                if a.get(key) is not None:
+                    entry[key] = round(a[key], 3) if isinstance(a[key], float) else a[key]
             edges.append(entry)
         data = {"nodes": nodes, "edges": edges}
         if self.landmarks:

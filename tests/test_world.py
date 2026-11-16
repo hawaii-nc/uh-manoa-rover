@@ -290,8 +290,14 @@ def test_exports_keep_labels(demo_world, tmp_path):
     labels = set()
     for prim in stage.Traverse():
         if prim.IsA(UsdGeom.Mesh):
-            labels.update(UsdSemantics.LabelsAPI(prim, "class").GetLabelsAttr().Get())
-            assert prim.HasAPI(UsdPhysics.CollisionAPI)
+            cls = UsdSemantics.LabelsAPI(prim, "class").GetLabelsAttr().Get()
+            labels.update(cls)
+            # Only things a rover can touch collide: not roofs, windows, doors or crowns.
+            solid = prim.HasAPI(UsdPhysics.CollisionAPI)
+            from campus_rover.physics import collision_for
+
+            assert solid == bool(collision_for(cls[0], prim.GetName().split("__")[-1])), \
+                prim.GetPath()
     assert {"building", "window", "walkway", "grass", "tree"} <= labels
 
 

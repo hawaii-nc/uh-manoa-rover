@@ -26,6 +26,7 @@ from .lidar import Rasters, fill_holes
 from .massing import Massing, box_massing, building_massing
 from .meshkit import Scene
 from .overture import ROAD_WIDTH_M
+from .physics import MODEL_COLLISION, collision_for, collision_stats
 from .style import Style, background_style, load_styles, slug, unverified_style
 
 GRASS, WALKWAY, ROAD = 0, 1, 2
@@ -367,19 +368,33 @@ def build_world(site, scenario=None, route_key: str | None = None,
     add_terrain(scene, rasters, surface, cfg.terrain_res, skip=covered)
 
     # The planned route decides which buildings matter most.
-    route_line, route_xy = None, []
+    route_line, route_xy, route_blocked = None, [], False
     route_key = route_key or (next(iter(reversed(site.routes))) if site.routes else None)
     if graph is not None and route_key in site.routes:
         try:
-            from .planner import CROWD_AWARE, RoutePlanner
+            from .planner import CROWD_AWARE, NoRouteError, RoutePlanner
             from .schedule import WeekTime
 
             planner = RoutePlanner.from_site(site)
             nodes = site.landmark_nodes(planner.graph)
             when = WeekTime.parse(scenario.time if scenario else "Mon 09:20")
-            plan = planner.plan([nodes[w] for w in site.routes[route_key].waypoints], when,
-                                CROWD_AWARE)
-            route_xy = [planner.graph.xy(n) for n in plan.nodes]
+            waypoints = [nodes[w] for w in site.routes[route_key].waypoints]
+            try:
+                plan = planner.plan(waypoints, when, CROWD_AWARE)
+                route_xy = [planner.graph.xy(n) for n in plan.nodes]
+            except NoRouteError as e:
+                # No route a rover can drive. The buildings along the intended route still
+                # matter, so use the least-blocked path (a straight line where the map has no
+                # path at all) and say so.
+                progress(f"no passable route ({e}); using the least-blocked path")
+                route_xy = [planner.graph.xy(waypoints[0])]
+                for a, b in zip(waypoints, waypoints[1:], strict=False):
+                    try:
+                        path = planner.blockers(a, b)["path"]
+                        route_xy += [planner.graph.xy(n) for n in path][1:]
+                    except NoRouteError:
+                        route_xy.append(planner.graph.xy(b))
+                route_blocked = True
             if len(route_xy) >= 2:
                 route_line = LineString(route_xy)
         except Exception as e:   # a missing route must not block building the world
@@ -600,7 +615,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "model_sources": {name: {"cls": a.cls, **a.meta} for name, a in {
             **scene.assets, **(agents_scene.assets if agents_scene else {})}.items()},
         "props": n_props, "agents": agent_counts,
-        "route": {"key": route_key, "length_m": round(route_line.length) if route_line else None,
+        "route": {"key": route_key, "passable": not route_blocked and route_line is not None,
+                  "length_m": round(route_line.length) if route_line else None,
                   "xy": [[round(x, 2), round(y, 2)] for x, y in route_xy]},
         "open_areas": open_areas,
         "checks": _checks(site, cfg, rasters, buildings_report, campus_polys, cch_heights),
@@ -942,9 +958,12 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
             st.Set(Vt.Vec2fArray.FromNumpy(uv.astype(np.float32)))
         UsdSemantics.LabelsAPI.Apply(m.GetPrim(), "class").CreateLabelsAttr().Set([cls])
         UsdShade.MaterialBindingAPI.Apply(m.GetPrim()).Bind(looks[material])
-        if collision:
+        _tag_traversability(m.GetPrim(), cls, Sdf)
+        approx = collision_for(cls, material) if collision else None
+        if approx:
             UsdPhysics.CollisionAPI.Apply(m.GetPrim())
-            UsdPhysics.MeshCollisionAPI.Apply(m.GetPrim()).CreateApproximationAttr().Set("none")
+            UsdPhysics.MeshCollisionAPI.Apply(m.GetPrim()).CreateApproximationAttr().Set(approx)
+            _bind_friction(stage, m.GetPrim(), cls, UsdShade, UsdPhysics)
     # Shared models: one prototype each, referenced by every placement.
     for name, asset in scene.assets.items():
         proto = f"/World/Prototypes/{_usd_name(name)}"
@@ -987,8 +1006,10 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
                 diffuse.Set(Gf.Vec3f(*p.color))
             mat.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
             UsdShade.MaterialBindingAPI.Apply(m.GetPrim()).Bind(mat)
-            if collision:
+            if collision and asset.cls in MODEL_COLLISION:
                 UsdPhysics.CollisionAPI.Apply(m.GetPrim())
+                UsdPhysics.MeshCollisionAPI.Apply(m.GetPrim()).CreateApproximationAttr().Set(
+                    MODEL_COLLISION[asset.cls])
         UsdGeom.Imageable(stage.GetPrimAtPath(proto)).MakeInvisible()
     for n, inst in enumerate(scene.instances):
         asset = scene.assets[inst.asset]
@@ -1004,7 +1025,32 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
         xf.AddScaleOp().Set(Gf.Vec3f(inst.scale, inst.scale, inst.scale))
         prim.SetInstanceable(True)
         UsdSemantics.LabelsAPI.Apply(prim, "class").CreateLabelsAttr().Set([asset.cls])
+        _tag_traversability(prim, asset.cls, Sdf)
     stage.GetRootLayer().Save()
+
+
+def _tag_traversability(prim, cls: str, Sdf) -> None:
+    """Record the class's traversability level on the prim, for per-pixel label export."""
+    from .traversal import level_of
+
+    prim.CreateAttribute("campus:traversability", Sdf.ValueTypeNames.Token).Set(level_of(cls))
+
+
+def _bind_friction(stage, prim, cls: str, UsdShade, UsdPhysics) -> None:
+    """Bind a physics material (friction) to a collider, one shared material per class."""
+    from .physics import friction_for
+
+    path = f"/World/PhysicsMaterials/{_usd_name(cls)}"
+    if not stage.GetPrimAtPath(path).IsValid():
+        mat = UsdShade.Material.Define(stage, path)
+        api = UsdPhysics.MaterialAPI.Apply(mat.GetPrim())
+        static, dynamic = friction_for(cls)
+        api.CreateStaticFrictionAttr(static)
+        api.CreateDynamicFrictionAttr(dynamic)
+        api.CreateRestitutionAttr(0.0)
+    material = UsdShade.Material(stage.GetPrimAtPath(path))
+    UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+        material, UsdShade.Tokens.weakerThanDescendants, "physics")
 
 
 def _usd_name(text: str) -> str:
@@ -1030,6 +1076,10 @@ def write_world(world: World, out_dir: Path, usd: bool = True) -> dict[str, Path
             export_usd(world.agents, files["agents.usd"], collision=False)
     if "agents.glb" in files:
         world.report["agents_file"] = files["agents.glb"].name
+    from .traversal import save_lut
+
+    save_lut(out_dir / "traversability.json")
+    world.report["physics"] = collision_stats(world.scene.parts)
     files["world.json"] = out_dir / "world.json"
     files["world.json"].write_text(json.dumps(world.report, indent=1))
     # The browser viewer sits next to the files it shows.

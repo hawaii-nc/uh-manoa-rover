@@ -222,6 +222,169 @@ def cmd_fetch_world_data(args) -> int:  # pragma: no cover - network
     return 0
 
 
+def cmd_build_walknet(args) -> int:
+    """Build the rover's walkway network from the surveyed walkway polygons."""
+    import json
+
+    from .lidar import Rasters
+    from .walknet import WalkParams, build_walk_graph, landmark_connectivity
+    from .world import WorldConfig, building_polygon, load_landcover
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    rasters = Rasters.load(site.root / cfg.rasters)
+    if cfg.vertical_shift_m:
+        rasters.shift_z(cfg.vertical_shift_m)
+    features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+    by: dict = {}
+    for geom, cls, _paint in features:
+        by.setdefault(cls, []).append(geom)
+    crossings = []
+    if cfg.segments and (site.root / cfg.segments).exists():
+        crossings = [s["coords"] for s in json.loads((site.root / cfg.segments).read_text())
+                     if s.get("subclass") == "crosswalk"]
+    bbox = rasters.bounds
+    model = site.load_model()
+    params = WalkParams(min_width_m=args.min_width)
+    graph, rep = build_walk_graph(by, rasters, bbox, crossings, params,
+                                  building_polys=[building_polygon(b) for b in model.buildings])
+    out = site.root / "cache" / "graph.walk.yaml"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    graph.save(out)
+    wanted = {site.landmark_label(k): model.find_building(spec["building"])
+              for k, spec in site.landmarks.items() if "building" in spec}
+    polys = {name: building_polygon(b) for name, b in wanted.items() if b is not None}
+    conn = landmark_connectivity(graph, polys)
+    print(f"{site.name}: {rep.nodes} nodes, {rep.edges} edges, {rep.length_m / 1000:.1f} km"
+          f" -> {out}")
+    print(f"  by kind (m): { {k: round(v) for k, v in rep.by_kind.items()} }")
+    print(f"  widths p10/p50/p90 (m): {rep.widths} · steeper than 8.3 %: {rep.steep_share:.0%}")
+    print(f"  pieces: {rep.components_before_repair} before gap repair, {rep.components_after}"
+          f" after ({rep.gap_links} gap links, {rep.gap_length_m:.0f} m; "
+          f"{rep.fragments_dropped} fragments dropped)")
+    print(f"  stairs {rep.stairs_edges} ({rep.stairs_only_links} join otherwise separate pieces)"
+          f" · crosswalks {rep.crosswalks} ({rep.crosswalks_with_curb_cuts} with curb cuts at"
+          f" both ends, {rep.crosswalks_unsnapped} not on the network)")
+    for name, info in conn["landmarks"].items():
+        print(f"  {name}: {info}")
+    print(f"  all landmarks in one piece: {conn['all_connected']}")
+    return 0
+
+
+def cmd_build_traversal(args) -> int:
+    """Label the ground traversable / conditional / blocked, with a slope and a cost map."""
+    from .lidar import Rasters
+    from .traversal import (
+        Limits,
+        build_traversability,
+        preview,
+        save_grid,
+        save_lut,
+        summarize,
+    )
+    from .world import WorldConfig, building_polygon, load_landcover
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    rasters = Rasters.load(site.root / cfg.rasters)
+    if cfg.vertical_shift_m:
+        rasters.shift_z(cfg.vertical_shift_m)
+    model = site.load_model()
+    features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+    discs = [(t.xy[0], t.xy[1], max((t.props.get("trunk_diameter_m") or 0.3) / 2, 0.12) + 0.05)
+             for t in model.trees]
+    discs += [(p.xy[0], p.xy[1], 0.35) for p in model.props
+              if p.cls not in ("vending_machine", "water_refill")]
+    grid = build_traversability(features, rasters, rasters.bounds,
+                                [building_polygon(b) for b in model.buildings], discs,
+                                Limits(args.free_slope, args.blocked_slope, args.rover_radius),
+                                res=args.res)
+    out = site.root / "cache"
+    save_grid(grid, out / "traversability.npz")
+    save_lut(out / "traversability.json")
+    preview(grid, out / "traversability.png")
+    print(f"{site.name}: traversability grid {grid['level'].shape[1]} x {grid['level'].shape[0]}"
+          f" cells of {args.res} m -> {out / 'traversability.npz'}")
+    print(f"  {summarize(grid)}")
+    return 0
+
+
+def cmd_measure_curbs(args) -> int:
+    """Test whether the lidar can resolve curb height (it cannot at UH: see the output)."""
+    import json
+
+    import numpy as np
+    from shapely.ops import unary_union
+
+    from .ground import CURB_HEIGHT_M, curb_reveal
+    from .lidar import rasterize_tiles
+    from .world import WorldConfig, load_landcover
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    coarse = np.load(site.root / cfg.rasters)
+    bbox = (float(coarse["x0"]), float(coarse["y0"]),
+            float(coarse["x0"]) + coarse["dtm"].shape[1] * float(coarse["res"]),
+            float(coarse["y0"]) + coarse["dtm"].shape[0] * float(coarse["res"]))
+    tiles = sorted((site.root / "cache" / "lidar").glob("*.laz"))
+    fine = rasterize_tiles(tiles, bbox, 0.25)
+    by: dict = {}
+    for geom, cls, _paint in load_landcover(site.root / cfg.landcover["file"], cfg.landcover):
+        by.setdefault(cls, []).append(geom)
+    import shapely
+
+    box = shapely.box(*bbox)
+    curbs = [c for c in by["curb"] if c.intersects(box) and c.area > 0.5]
+    result = curb_reveal(fine.dtm + cfg.vertical_shift_m, fine.ground_n > 0, fine.x0, fine.y0,
+                         fine.res, curbs, unary_union(by["road"]),
+                         unary_union(by["walkway"] + by["ramp"]))
+    result["assumed_curb_height_m"] = CURB_HEIGHT_M
+    out = site.root / "cache" / "measurements.json"
+    out.write_text(json.dumps({"curbs": result}, indent=1))
+    print(f"{len(curbs)} curb polygons; results -> {out}")
+    for key, value in result.items():
+        print(f"  {key}: {value}")
+    return 0
+
+
+def cmd_blockers(args) -> int:
+    """For a route, list what stops a rover: the least-blocked path and each blocked stretch."""
+    import itertools
+
+    site = load_site(args.site, args.sites_dir)
+    planner = RoutePlanner.from_site(site)
+    nodes = _route_nodes(site, planner, args.route)
+    route = site.routes[args.route]
+    print(f"{site.name} · route {route.key}: {route.label}")
+    print(f"rover limits: slope <= {planner.params.max_slope:.1%}, stairs "
+          f"{'allowed' if planner.params.allow_stairs else 'not allowed'}, closures respected")
+    total = 0
+    for a, b in itertools.pairwise(nodes):
+        names = (f"{site.landmark_label(_label_of(site, planner, a))} -> "
+                 f"{site.landmark_label(_label_of(site, planner, b))}")
+        try:
+            info = planner.blockers(a, b)
+        except NoRouteError as e:
+            print(f"\n{names}: NO ROUTE AT ALL, even over impassable ground.\n  {e}")
+            total += 1
+            continue
+        print(f"\n{names}: "
+              f"least-blocked path {info['length_m']:.0f} m, "
+              f"{len(info['stretches'])} blocked stretch(es)")
+        for st in info["stretches"]:
+            total += 1
+            print(f"  {st['reason']:<12}{st['length_m']:>5.0f} m  from ({st['from'][0]:.0f}, "
+                  f"{st['from'][1]:.0f}) to ({st['to'][0]:.0f}, {st['to'][1]:.0f})"
+                  f"  steepest {st['max_grade']:.0%}")
+    print(f"\n{total} blocked stretch(es) in total" if total else "\nthe route is passable")
+    return 0
+
+
+def _label_of(site, planner, node) -> str:
+    nodes = site.landmark_nodes(planner.graph)
+    return next((k for k, v in nodes.items() if v == node), node)
+
+
 def cmd_build_plans(args) -> int:
     """Fit every cached floor-plan PDF onto its building and save the layouts."""
     import json
@@ -423,6 +586,33 @@ def build_parser() -> argparse.ArgumentParser:
     data.add_argument("--site", required=True)
     data.add_argument("--force", action="store_true", help="re-download what is already cached")
     data.set_defaults(func=cmd_fetch_world_data)
+
+    trav = sub.add_parser("build-traversal",
+                          help="label ground traversable/conditional/blocked; slope and cost maps")
+    trav.add_argument("--site", required=True)
+    trav.add_argument("--res", type=float, default=0.5)
+    trav.add_argument("--free-slope", type=float, default=0.083, help="grade climbed freely")
+    trav.add_argument("--blocked-slope", type=float, default=0.15, help="grade that blocks")
+    trav.add_argument("--rover-radius", type=float, default=0.4, help="meters")
+    trav.set_defaults(func=cmd_build_traversal)
+
+    curbs = sub.add_parser("measure-curbs",
+                           help="check whether the lidar can resolve curb height")
+    curbs.add_argument("--site", required=True)
+    curbs.set_defaults(func=cmd_measure_curbs)
+
+    block = sub.add_parser("blockers",
+                           help="what stops a rover on a route: the least-blocked path")
+    block.add_argument("--site", required=True)
+    block.add_argument("--route", required=True)
+    block.set_defaults(func=cmd_blockers)
+
+    walk = sub.add_parser("build-walknet",
+                          help="build the rover's walkway network from the surveyed polygons")
+    walk.add_argument("--site", required=True)
+    walk.add_argument("--min-width", type=float, default=1.0,
+                      help="narrowest strip counted as a path, meters (the rover's width + margin)")
+    walk.set_defaults(func=cmd_build_walknet)
 
     plans = sub.add_parser("build-plans",
                            help="fit the cached floor-plan PDFs onto their buildings")

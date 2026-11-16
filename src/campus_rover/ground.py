@@ -37,6 +37,8 @@ CLASSES = {
     "rock_wall":    ("rock_wall", (0.45, 0.42, 0.40), "wall"),
     "grass":        ("grass",     (0.38, 0.55, 0.24), "flat"),
     "planter":      ("soil",      (0.30, 0.42, 0.22), "flat"),
+    "stepstone":    ("concrete",  (0.74, 0.72, 0.68), "flat"),
+    "building_slab": ("concrete", (0.72, 0.70, 0.66), "flat"),
     "gravel":       ("gravel",    (0.62, 0.59, 0.54), "flat"),
     "rock":         ("rock_wall", (0.42, 0.40, 0.38), "flat"),
     "dirt":         ("soil",      (0.50, 0.40, 0.30), "flat"),
@@ -47,7 +49,7 @@ PAINT = {"red": (0.72, 0.12, 0.10), "yellow": (0.90, 0.75, 0.10), "green": (0.15
          "blue": (0.12, 0.30, 0.70), "orange": (0.92, 0.50, 0.10), "white": (0.93, 0.93, 0.90)}
 # What each class counts as in the coarse road / walkway / grass grid.
 COARSE = {"road": 2, "walkway": 1, "ramp": 1, "stairs": 1, "curb": 1, "gravel": 1,
-          "sports_court": 1}
+          "sports_court": 1, "stepstone": 1, "building_slab": 1}
 
 
 def split_by_grid(poly, cell: float = GRID_M) -> list:
@@ -237,3 +239,52 @@ def coarse_grid(features, rasters, default: int = 0) -> tuple[np.ndarray, np.nda
     covered = grid != 255
     grid[~covered] = default
     return grid, covered
+
+
+def curb_reveal(z, valid, x0: float, y0: float, res: float, curbs, road, walk,
+                min_cells: int = 8) -> dict:
+    """How far the lidar ground steps up from road to sidewalk at each mapped curb.
+
+    z / valid: a fine ground grid (row 0 = south) and which cells have ground points.
+    For every curb polygon the median ground height is taken on the road side, on the
+    sidewalk side and on the curb itself, in strips 0.35-1.3 m away, and the differences
+    are summarised over all curbs. A control compares two strips of road at different
+    distances from the curb: its spread is the noise floor, so a reading near it means
+    the lidar cannot resolve the curb."""
+    import shapely
+
+    def cells(poly):
+        if poly.is_empty:
+            return np.array([])
+        minx, miny, maxx, maxy = poly.bounds
+        c0, c1 = max(int((minx - x0) / res), 0), min(int((maxx - x0) / res) + 1, z.shape[1])
+        r0, r1 = max(int((miny - y0) / res), 0), min(int((maxy - y0) / res) + 1, z.shape[0])
+        if c1 <= c0 or r1 <= r0:
+            return np.array([])
+        gx, gy = np.meshgrid(x0 + (np.arange(c0, c1) + 0.5) * res,
+                             y0 + (np.arange(r0, r1) + 0.5) * res)
+        inside = shapely.contains_xy(poly, gx, gy) & valid[r0:r1, c0:c1]
+        return z[r0:r1, c0:c1][inside]
+
+    side, top, control = [], [], []
+    for c in curbs:
+        ring = c.buffer(1.3).difference(c.buffer(0.35))
+        r, w, t = cells(ring.intersection(road)), cells(ring.intersection(walk)), cells(c)
+        far = cells(c.buffer(2.2).difference(c.buffer(1.4)).intersection(road))
+        if len(r) >= min_cells and len(w) >= min_cells:
+            side.append(float(np.median(w) - np.median(r)))
+        if len(r) >= min_cells and len(t) >= 4:
+            top.append(float(np.median(t) - np.median(r)))
+        if len(r) >= min_cells and len(far) >= min_cells:
+            control.append(float(np.median(far) - np.median(r)))
+
+    def summary(values):
+        a = np.asarray(values)
+        if not len(a):
+            return {"n": 0}
+        return {"n": int(len(a)), "median_m": round(float(np.median(a)), 3),
+                "p25_m": round(float(np.percentile(a, 25)), 3),
+                "p75_m": round(float(np.percentile(a, 75)), 3)}
+
+    return {"sidewalk_minus_road": summary(side), "curb_top_minus_road": summary(top),
+            "control_road_minus_road": summary(control)}

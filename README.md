@@ -4,7 +4,7 @@ A camera-only autonomous rover that learns to navigate the University of Hawaiʻ
 
 - **[docs/SCOPE.md](docs/SCOPE.md):** full project scope (phases, mainland proof of concept, data plan, risks)
 - **[docs/LIBRARIES.md](docs/LIBRARIES.md):** open-source libraries for each pipeline stage
-- **[docs/SIM_READINESS.md](docs/SIM_READINESS.md):** what the 3D world still needs before a rover can train and drive on it, measured
+- **[docs/SIM_READINESS.md](docs/SIM_READINESS.md):** what the 3D world still needs before a rover can train and drive on it, measured; items 1–4 (walkway network, traversability, terrain, collision) are built
 - **[docs/WORLD.md](docs/WORLD.md):** the 3D training world: what is in it, how to build it, what is not right yet
 - **[docs/CAMPUS_3D_PLAN.md](docs/CAMPUS_3D_PLAN.md):** research and plan behind the 3D world
 - **[docs/UH_MAP_MODEL.md](docs/UH_MAP_MODEL.md):** turning the UH campus map into the planning model and an Isaac Sim (USD) scene

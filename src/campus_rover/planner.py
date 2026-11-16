@@ -22,6 +22,8 @@ import heapq
 import itertools
 from dataclasses import dataclass, field
 
+import numpy as np
+
 from .crowd import CrowdModel
 from .graph import CampusGraph
 from .schedule import WeekTime
@@ -116,13 +118,28 @@ class RoutePlanner:
             return False
         if data["kind"] == "stairs" and not self.params.allow_stairs:
             return False
+        if self._too_narrow(data) or self._no_curb_cut(data):
+            return False
         return abs(data["slope"]) <= self.params.max_slope
+
+    def _too_narrow(self, data: dict) -> bool:
+        width = data.get("width")
+        return bool(self.params.min_width_m and width is not None
+                    and width < self.params.min_width_m)
+
+    def _no_curb_cut(self, data: dict) -> bool:
+        return bool(self.params.require_curb_cut and data["kind"] == "crosswalk"
+                    and data.get("curb_cut") is False)
 
     def why_impassable(self, data: dict) -> str | None:
         if data["closed"]:
             return f"closed ({data['closed_reason']})"
         if data["kind"] == "stairs" and not self.params.allow_stairs:
             return "stairs"
+        if self._too_narrow(data):
+            return f"too narrow ({data['width']:.1f} m < {self.params.min_width_m:.1f} m)"
+        if self._no_curb_cut(data):
+            return "no curb cut"
         if abs(data["slope"]) > self.params.max_slope:
             return f"too steep ({abs(data['slope']):.0%} > {self.params.max_slope:.1%})"
         return None
@@ -155,6 +172,82 @@ class RoutePlanner:
             duration_s=length / speed,
             cost=cost,
         )
+
+    # ---- diagnosis ------------------------------------------------------------
+
+    def blockers(self, src: str, dst: str, penalty_m: float = 500.0) -> dict:
+        """The route that crosses the least impassable ground, and every stretch of it that
+        a rover cannot use. Used to say *why* there is no route, and where to look.
+
+        Returns {"length_m", "path", "stretches": [{reason, kind, from, to, length_m,
+        max_grade}]} with consecutive blocked edges of one reason merged."""
+        g = self.graph.g
+        if src not in g or dst not in g:
+            raise NoRouteError(f"unknown node {src!r} or {dst!r}")
+        import networkx as nx
+
+        weights = nx.Graph()
+        for u, v, d in g.edges(data=True):
+            weights.add_edge(u, v, w=d["length"] + (0.0 if self.passable(d) else penalty_m))
+        try:
+            path = nx.shortest_path(weights, src, dst, weight="w")
+        except nx.NetworkXNoPath as e:
+            gap = self.closest_approach(src, dst)
+            raise NoRouteError(
+                f"{src!r} and {dst!r} are in different pieces of the map; the two pieces come "
+                f"within {gap['distance_m']:.1f} m of each other, at ({gap['a'][0]:.0f}, "
+                f"{gap['a'][1]:.0f}) and ({gap['b'][0]:.0f}, {gap['b'][1]:.0f})") from e
+        stretches, length = [], 0.0
+        for u, v in itertools.pairwise(path):
+            d = g.edges[u, v]
+            length += d["length"]
+            reason = self.why_impassable(d)
+            if reason is None:
+                continue
+            kind = reason.split(" (")[0]
+            end = self.graph.xy(v)
+            if stretches and stretches[-1]["reason"] == kind and stretches[-1]["_last"] == u:
+                last = stretches[-1]
+                last.update(to=end, _last=v, length_m=last["length_m"] + d["length"],
+                            max_grade=max(last["max_grade"], abs(d["slope"])))
+            else:
+                stretches.append({"reason": kind, "kind": d["kind"], "from": self.graph.xy(u),
+                                  "to": end, "_last": v, "length_m": d["length"],
+                                  "max_grade": abs(d["slope"])})
+        for st in stretches:
+            st.pop("_last", None)
+        return {"length_m": length, "path": path, "stretches": stretches}
+
+    def closest_approach(self, src: str, dst: str) -> dict:
+        """Where the map pieces holding two nodes come closest, ignoring edge passability."""
+        import networkx as nx
+
+        g = self.graph.g
+        piece = {n: i for i, c in enumerate(nx.connected_components(g)) for n in c}
+        a_nodes = [n for n in g if piece[n] == piece[src]]
+        b_nodes = [n for n in g if piece[n] == piece[dst]]
+        a = np.array([self.graph.xy(n) for n in a_nodes])
+        b = np.array([self.graph.xy(n) for n in b_nodes])
+        best = (float("inf"), None, None)
+        for p in a:
+            d = np.hypot(b[:, 0] - p[0], b[:, 1] - p[1])
+            j = int(d.argmin())
+            if d[j] < best[0]:
+                best = (float(d[j]), tuple(p), tuple(b[j]))
+        return {"distance_m": best[0], "a": best[1], "b": best[2]}
+
+    def _no_route_message(self, src: str, dst: str) -> str:
+        message = f"no passable route from {src!r} to {dst!r}"
+        try:
+            info = self.blockers(src, dst)
+        except NoRouteError as e:
+            return f"{message}: {e}"
+        parts = [f"{s['reason']} at ({s['from'][0]:.0f}, {s['from'][1]:.0f}), "
+                 f"{s['length_m']:.0f} m" for s in info["stretches"][:4]]
+        more = len(info["stretches"]) - 4
+        return (f"{message}. The least-blocked route is {info['length_m']:.0f} m and crosses "
+                f"{len(info['stretches'])} impassable stretch(es): " + "; ".join(parts)
+                + (f"; and {more} more" if more > 0 else ""))
 
     # ---- search --------------------------------------------------------------
 
@@ -199,7 +292,7 @@ class RoutePlanner:
                     back[nbr] = leg
                     heapq.heappush(heap, (new_cost, next(tie), nbr, t.plus_seconds(leg.duration_s)))
         if dst not in back:
-            raise NoRouteError(f"no passable route from {src!r} to {dst!r}")
+            raise NoRouteError(self._no_route_message(src, dst))
         legs = []
         node = dst
         while node != src:

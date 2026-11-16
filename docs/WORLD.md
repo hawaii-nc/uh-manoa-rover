@@ -102,6 +102,7 @@ campus-rover view --dir out/uh_manoa
 - `fetch-layers` downloads the UH campus map layers (buildings, trees, props, doors).
 - `fetch-world-data` downloads walkways and roads, six lidar tiles (about 315 MB), and the official open data listed below. Downloads go to `sites/uh_manoa/cache/`, which is not in git.
 - `build-plans` fits UH's floor-plan PDFs (cached in `cache/floorplans/` by earlier floor-count runs) onto their buildings and saves the layouts to `cache/plans/`. Run it before `build-world` to build from plans.
+- `build-walknet`, `build-traversal` and `measure-curbs` build the rover's network and labels from the cached survey (see "For the rover" below).
 - `fetch-assets` downloads the free 3D models listed in `assets.py`. Without them the build still works and uses simple stand-in shapes.
 - `build-world` takes about 40 seconds and writes:
 
@@ -153,6 +154,57 @@ Most buildings are an extruded outline with windows painted on. For six building
 **What is not from the plans:** wall and trim colours and the window pattern (photos), floor heights (the lidar main roof shared equally between the floors: 5.0 m on Holmes, 3.9 m on Architecture), and the windows themselves (a generic band on each room wall; the plans do not show windows). Doors are still only placed at UH's mapped door points, and the plans' interiors are not built.
 
 **Known limits.** Placement is good to about ±3 m: the stacked slabs' extents match the roof to 3.7 m on Holmes and to 5.4 m on Architecture, and part of that is roof overhang. A building that is nearly symmetrical could in principle fit equally well turned half a circle; the East/West naming and the column grid guard against it, but cannot rule it out for a symmetrical single sheet. Architecture's mostly open ground-floor sheet cannot be aligned by columns, so its ground floor takes the footprint of the floor above (a solid base, as in UH's photos). The plans are for information only and UH asks that they stay private, so the PDFs and the fitted layouts stay in `cache/` and out of this repository.
+
+## For the rover: network, traversability, physics
+
+The world is also what a rover plans and drives on, so it carries a path network, labels for what can be driven on, and collision and friction for the physics engine. Details of the measurements are in [SIM_READINESS.md](SIM_READINESS.md).
+
+| Walkway network (colour = connected piece, purple = stairs, red = crosswalk) | Traversability (green free, amber conditional, red blocked) |
+|---|---|
+| ![network](img/walknet.jpg) | ![traversability](img/traversability.jpg) |
+
+### The walkway network (`walknet.py`, `campus-rover build-walknet`)
+
+OpenStreetMap has few UH footpaths: the route planned on it ran **46 % on road and only 39 % on walkway**. The network is built from UH's surveyed walkway and ramp polygons instead.
+
+1. Walkway and ramp polygons are joined (hairline gaps closed), then curbs, walls, planters, water and whole flights of stairs are removed. This order matters: closing after removing would bridge a thin wall.
+2. The centerline (skeleton) becomes the edges, each with its **width**, its **grade** (measured on lidar ground, with the cells next to buildings thrown away because eaves and foundations make them unreliable), and whether it is a ramp.
+3. Stair flights become `stairs` edges, so the planner knows they exist and does not use them.
+4. Marked crosswalks (from OpenStreetMap, via Overture) become `crosswalk` edges. A crossing that arrives in the middle of a long path splits that path there.
+5. Where the survey has a break, links of up to 12 m over grass or gravel join the pieces, flagged `gap`. They never cross a road, wall, curb or building. The build reports how many it added (37, 174 m in total), so a data break is never hidden.
+
+Two assumptions are named in `WalkParams`: the narrowest strip counted as a path (1.0 m, to be set from the rover's real width) and the longest break bridged (12 m).
+
+**What it says about the corridor.** Holmes Hall and Campus Center are in one piece. The Architecture side is a different piece, and the closest the two come is 9.7 m. A rover with the 8.3 % grade limit, no stairs and construction closures respected gets no route from Campus Center to Architecture, and Holmes → Campus Center needs two 7 m stretches that are too steep (one at 9 %, one at 56 %, probably a deck or stairs the survey lacks).
+
+```bash
+campus-rover blockers --site uh_manoa --route AB
+```
+
+`blockers` prints the least-blocked path and every stretch that stops a rover, with location and reason, or says the nearest points of two disconnected pieces. When there is no passable route `plan` now explains why instead of returning a route a rover could not drive (the old one ran down roads). Each blocker needs a human decision: is it a real barrier, a missing crossing in the data, or lidar misreading a terrace?
+
+**Not known from the survey:** curb cuts. The survey draws curbs continuously and has no ramp polygon within 37 m of any crosswalk, so every crossing's `curb_cut` is `unknown`, not `false`. Set `planner.require_curb_cut` only once curb cuts have been checked in the field.
+
+### Traversability (`traversal.py`, `campus-rover build-traversal`)
+
+Each semantic class is `traversable`, `conditional` or `blocked`:
+- traversable: walkway, ramp
+- conditional: grass, gravel, dirt, road, stepping stones, rock, courts
+- blocked: stairs, curbs, walls, planters, water, building slabs, buildings, trunks, furniture; people and vehicles are `dynamic`
+
+Slope lowers a level: a walkway steeper than 8.3 % is conditional, steeper than 15 % blocked. The build writes a ground raster (level, slope, cost map with the rover's radius kept clear) and `traversability.json`, the class-to-level table for labelling rendered images. The same table is written onto every USD prim as `campus:traversability`. The levels are a policy: whether a rover may use a road or a 10 % grade is the rover's rule, and `Limits` and `LEVELS` are the places to change it.
+
+### Terrain and curbs
+
+- **Curb height cannot be measured from this lidar.** Curb by curb, the ground steps up from road to sidewalk by 4.6 cm (middle half −4 to +14 cm) against a noise floor of about ±3.5 cm, from 412 curbs. `campus-rover measure-curbs` reproduces this. Curbs are therefore drawn at the standard 15 cm, as an assumption.
+- **Slab joints and cracks** are not in any data set. They belong in domain randomisation, with the roughness ranges in `physics.py`, not in the baked world.
+- **Slope** is real data: about 5 % of walkway length is steeper than 8.3 %.
+
+### Collision and friction (`physics.py`)
+
+Only things at wheel height collide: ground, curbs, stairs, walls, building walls, trunks (not tree crowns) and furniture. Roofs, windows, doors, road paint and agents do not. On the corridor that is 69 % of the scene's triangles (954k of 1.39M), building walls the largest share at 352k. Benches and street lights, placed many times, collide as convex hulls. Each collider is bound a physics material with friction.
+
+**The friction numbers are placeholders.** They are typical ranges for rubber on each surface (concrete 0.6–0.9, grass 0.3–0.55, gravel 0.45–0.65, lower when wet), not measurements of UH's pavement. They need slide tests with the real rover, dry and wet. `sample_friction` draws from the ranges for randomisation. None of this has been run in Isaac Sim.
 
 ## Free 3D models
 

@@ -19,6 +19,8 @@ class PlannerParams:
     speed_mps: float = 1.2
     max_slope: float = 0.083
     allow_stairs: bool = False
+    min_width_m: float = 0.0           # edges narrower than this are impassable (0 = ignore)
+    require_curb_cut: bool = False     # crossings need a curb cut at both ends
     # Rover slows in crowds: speed = speed_mps / (1 + density / crowd_halfspeed_density)
     crowd_halfspeed_density: float = 20.0
     w_distance: float = 1.0
@@ -33,6 +35,8 @@ class PlannerParams:
             speed_mps=float(data.get("speed_mps", cls.speed_mps)),
             max_slope=float(data.get("max_slope", cls.max_slope)),
             allow_stairs=bool(data.get("allow_stairs", cls.allow_stairs)),
+            min_width_m=float(data.get("min_width_m", cls.min_width_m)),
+            require_curb_cut=bool(data.get("require_curb_cut", cls.require_curb_cut)),
             crowd_halfspeed_density=float(
                 data.get("crowd_halfspeed_density", cls.crowd_halfspeed_density)
             ),
@@ -68,6 +72,12 @@ class Site:
 
     @property
     def graph_path(self) -> Path:
+        """The walkway graph file. A surveyed network (`graph.walk_path`, built by
+        `campus-rover build-walknet`) is preferred when it exists; the file named by
+        `graph.path` (e.g. imported from OpenStreetMap) is the fallback."""
+        walk = self.raw["graph"].get("walk_path")
+        if walk and (self.root / walk).exists():
+            return self.root / walk
         return self.root / self.raw["graph"]["path"]
 
     def load_graph(self) -> CampusGraph:
