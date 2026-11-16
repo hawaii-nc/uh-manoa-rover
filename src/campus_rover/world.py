@@ -32,6 +32,7 @@ GRASS, WALKWAY, ROAD = 0, 1, 2
 SURFACE_NAMES = {GRASS: "grass", WALKWAY: "walkway", ROAD: "road"}
 SURFACE_COLORS = {"grass": (0.33, 0.47, 0.22), "walkway": (0.70, 0.68, 0.63),
                   "road": (0.20, 0.20, 0.21)}
+SURFACE_TEXTURES = {"grass": "grass", "walkway": "concrete", "road": "asphalt"}
 INDOOR_PROPS = {"vending_machine", "water_refill"}
 
 
@@ -47,6 +48,8 @@ class WorldConfig:
     lidar_tiles: list[str] = field(default_factory=list)   # LAZ tile URLs covering the corridor
     vertical_shift_m: float = 0.0       # added to lidar heights to match official contours
     open_data: str | None = None        # folder of official open data (see opendata.py)
+    landcover: dict | None = None       # surveyed ground polygons: file, field, classes
+    ground_lines: dict | None = None    # painted lines: file, colour_field, categories
     lidar_res: float = 0.5
     terrain_res: float = 1.0
     asphalt_max: float = 5500.0         # ground brightness below this = asphalt
@@ -139,7 +142,46 @@ def classify_surface(rasters: Rasters, cfg: WorldConfig, road_lines, walk_lines)
 # ---- scene pieces ------------------------------------------------------------------
 
 
-def add_terrain(scene: Scene, rasters: Rasters, surface: np.ndarray, res: float) -> None:
+def load_landcover(path: Path, cfg: dict) -> list[tuple[object, str, str | None]]:
+    """Land-cover features -> [(polygon, semantic class, paint colour or None)]."""
+    from shapely.geometry import shape as to_shape
+
+    classes = cfg.get("classes") or {}
+    out = []
+    for f in json.loads(path.read_text()):
+        props = f.get("properties") or {}
+        cls = classes.get(str(props.get(cfg.get("field", "class"))))
+        if cls is None or not f.get("geometry"):
+            continue
+        geom = to_shape(f["geometry"])
+        geom = geom if geom.is_valid else geom.buffer(0)
+        paint = str(props.get(cfg.get("paint_field", "")) or "").split(" ")[0].lower() or None
+        if not geom.is_empty:
+            out.append((geom, cls, paint))
+    return out
+
+
+def load_ground_lines(path: Path, cfg: dict) -> list[tuple[list, str]]:
+    keep = set(cfg.get("categories") or [])
+    out = []
+    for f in json.loads(path.read_text()):
+        props, geom = f.get("properties") or {}, f.get("geometry") or {}
+        if keep and props.get(cfg.get("category_field", "")) not in keep:
+            continue
+        colour = str(props.get(cfg.get("colour_field", "")) or "white").lower()
+        parts = geom.get("coordinates") or []
+        if geom.get("type") == "LineString":
+            parts = [parts]
+        for part in parts:
+            out.append(([(float(p[0]), float(p[1])) for p in part],
+                        colour if colour != "none" else "white"))
+    return out
+
+
+def add_terrain(scene: Scene, rasters: Rasters, surface: np.ndarray, res: float,
+                skip: np.ndarray | None = None) -> None:
+    """Terrain mesh from the grids. Cells where `skip` is True are left out (they
+    are covered by surveyed ground polygons)."""
     step = max(1, round(res / rasters.res))
     dtm = rasters.dtm
     rows, cols = dtm.shape
@@ -150,7 +192,9 @@ def add_terrain(scene: Scene, rasters: Rasters, surface: np.ndarray, res: float)
     gx, gy = np.meshgrid(rasters.x0 + cs * rasters.res, rasters.y0 + rs * rasters.res)
     verts = np.c_[gx.ravel(), gy.ravel(), z.ravel()]
     n_r, n_c = len(rs), len(cs)
-    cell_class = surface[np.ix_(rs[:-1] + step // 2, cs[:-1] + step // 2)]
+    cell_class = surface[np.ix_(rs[:-1] + step // 2, cs[:-1] + step // 2)].astype(int)
+    if skip is not None:
+        cell_class[skip[np.ix_(rs[:-1] + step // 2, cs[:-1] + step // 2)]] = -1
     r, c = np.meshgrid(np.arange(n_r - 1), np.arange(n_c - 1), indexing="ij")
     a = (r * n_c + c).ravel()
     b, d, e = a + 1, a + n_c, a + n_c + 1
@@ -161,15 +205,16 @@ def add_terrain(scene: Scene, rasters: Rasters, surface: np.ndarray, res: float)
             continue
         faces = np.r_[np.c_[a[pick], b[pick], e[pick]], np.c_[a[pick], e[pick], d[pick]]]
         used, remap = np.unique(faces, return_inverse=True)
-        mat = scene.material(name, SURFACE_COLORS[name], roughness=1.0)
+        mat = scene.material(name, SURFACE_COLORS[name], roughness=1.0,
+                             texture=SURFACE_TEXTURES[name])
         scene.mesh("terrain", name, mat).add(verts[used], remap.reshape(-1, 3))
 
 
 def add_tree(scene: Scene, x, y, z, height, radius, trunk_d, family: str, habit: str,
              seed: int) -> None:
-    bark = scene.material("bark", (0.33, 0.26, 0.19))
-    greens = [(0.16, 0.36, 0.14), (0.22, 0.42, 0.16), (0.13, 0.30, 0.15), (0.28, 0.44, 0.18)]
-    leaves = scene.material(f"leaves_{seed % 4}", greens[seed % 4])
+    bark = scene.material("bark", (0.45, 0.36, 0.27), texture="bark")
+    greens = [(0.20, 0.44, 0.17), (0.27, 0.51, 0.20), (0.16, 0.37, 0.18), (0.34, 0.54, 0.22)]
+    leaves = scene.material(f"leaves_{seed % 4}", greens[seed % 4], texture="grass")
     trunk = scene.mesh("trees", "tree", bark)
     crown = scene.mesh("trees", "tree", leaves)
     if "arecaceae" in family.lower() or "palm" in habit.lower():
@@ -300,7 +345,22 @@ def build_world(site, scenario=None, route_key: str | None = None,
     scene = Scene(origin=((x0 + x1) / 2, (y0 + y1) / 2, float(np.nanmin(rasters.dtm))))
     scene.meta = {"site": site.name, "crs": site.crs, "bbox": [float(v) for v in bbox],
                   "lidar": has_lidar}
-    add_terrain(scene, rasters, surface, cfg.terrain_res)
+    ground_report = {}
+    covered = None
+    if cfg.landcover and (site.root / cfg.landcover["file"]).exists():
+        progress("ground detail: surfaces, curbs, stairs, walls")
+        from .ground import add_landcover, add_painted_lines, coarse_grid
+
+        features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+        grid, covered = coarse_grid(features, rasters)
+        surface = np.where(covered, grid, surface).astype(np.uint8)
+        ground_report = add_landcover(scene, features, rasters, bbox)
+        lines_cfg = cfg.ground_lines or {}
+        if lines_cfg and (site.root / lines_cfg["file"]).exists():
+            ground_report["painted_line_segments"] = add_painted_lines(
+                scene, load_ground_lines(site.root / lines_cfg["file"], lines_cfg), rasters, bbox)
+    # Lidar-classified terrain fills whatever the land-cover layer does not cover.
+    add_terrain(scene, rasters, surface, cfg.terrain_res, skip=covered)
 
     # The planned route decides which buildings matter most.
     route_line, route_xy = None, []
@@ -475,7 +535,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "elevation_m": [round(float(np.nanmin(rasters.dtm)), 1),
                         round(float(np.nanmax(rasters.dtm)), 1)],
         "surface_share": share, "background_buildings": n_background, "trees": n_trees,
-        "tree_height_source": tree_size,
+        "tree_height_source": tree_size, "ground": ground_report,
         "props": n_props, "agents": agent_counts,
         "route": {"key": route_key, "length_m": round(route_line.length) if route_line else None,
                   "xy": [[round(x, 2), round(y, 2)] for x, y in route_xy]},
@@ -563,37 +623,138 @@ def _int(value) -> int | None:
 # ---- exporters ---------------------------------------------------------------------
 
 
-def export_glb(scene: Scene, path: Path) -> None:
-    """Binary glTF. glTF is Y-up, so (x, y, z) is written as (x, z, -y).
-    Node names are "group|class|material", which the viewer reads back."""
-    import trimesh
+TEXTURE_DIR = Path(__file__).parent / "textures"
+PLANAR_GROUPS = ("ground", "terrain")     # textured straight down; everything else per face
 
-    out = trimesh.Scene()
-    ox, oy, oz = scene.origin
-    for (group, cls, material), mesh in sorted(scene.parts.items()):
-        verts, faces = mesh.arrays()
+
+def texture_info() -> dict:
+    return json.loads((TEXTURE_DIR / "textures.json").read_text())
+
+
+def part_arrays(scene: Scene, key, tiles: dict):
+    """(positions, faces, uv or None) for one part, in local Z-up meters.
+
+    Ground parts keep their vertices and get top-down texture coordinates. Other
+    textured parts get one vertex per face corner, mapped along the face, so a
+    wall's texture runs along the wall and up it."""
+    group, _, material = key
+    verts, faces = scene.parts[key].arrays()
+    local = verts - np.asarray(scene.origin)
+    texture = scene.materials[material].get("texture")
+    if texture is None or len(faces) == 0:
+        return local, faces, None
+    tile = float(tiles[texture]["tile_m"])
+    if group.split("/")[0] in PLANAR_GROUPS:
+        return local, faces, local[:, :2] / tile
+    if group.split("/")[0] == "trees":       # rounded shapes: wrap around, keep vertices shared
+        return local, faces, np.c_[(local[:, 0] + local[:, 1]) * 0.7, local[:, 2]] / tile
+    tri = local[faces]                                         # (m, 3, 3)
+    normal = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    normal /= np.linalg.norm(normal, axis=1, keepdims=True) + 1e-12
+    flat = np.abs(normal[:, 2]) >= 0.7
+    tangent = np.c_[-normal[:, 1], normal[:, 0]]
+    tangent /= np.linalg.norm(tangent, axis=1, keepdims=True) + 1e-12
+    along = tri[:, :, 0] * tangent[:, None, 0] + tri[:, :, 1] * tangent[:, None, 1]
+    u = np.where(flat[:, None], tri[:, :, 0], along)
+    v = np.where(flat[:, None], tri[:, :, 1], tri[:, :, 2])
+    uv = np.stack([u, v], axis=-1).reshape(-1, 2) / tile
+    return tri.reshape(-1, 3), np.arange(len(tri) * 3).reshape(-1, 3), uv
+
+
+def export_glb(scene: Scene, path: Path) -> None:
+    """Binary glTF with embedded textures. glTF is Y-up, so (x, y, z) is written as
+    (x, z, -y). Node names are "group|class|material", which the viewer reads back."""
+    import struct
+
+    tiles = texture_info()
+    blob = bytearray()
+    views, accessors, meshes, nodes, materials, images, textures = [], [], [], [], [], [], []
+    material_index: dict[str, int] = {}
+    texture_index: dict[str, int] = {}
+
+    def view(data: bytes, target: int | None = None) -> int:
+        while len(blob) % 4:
+            blob.append(0)
+        entry = {"buffer": 0, "byteOffset": len(blob), "byteLength": len(data)}
+        if target:
+            entry["target"] = target
+        blob.extend(data)
+        views.append(entry)
+        return len(views) - 1
+
+    def accessor(array: np.ndarray, kind: str, component: int, target: int,
+                 bounds: bool = False) -> int:
+        entry = {"bufferView": view(array.tobytes(), target), "componentType": component,
+                 "count": int(len(array)), "type": kind}
+        if bounds:
+            entry["min"] = [float(v) for v in array.min(axis=0)]
+            entry["max"] = [float(v) for v in array.max(axis=0)]
+        accessors.append(entry)
+        return len(accessors) - 1
+
+    def material_id(name: str) -> int:
+        if name in material_index:
+            return material_index[name]
+        m = scene.materials[name]
+        pbr = {"baseColorFactor": [*m["color"], m["opacity"]],
+               "roughnessFactor": m["roughness"], "metallicFactor": m["metallic"]}
+        if m.get("texture"):
+            tex = m["texture"]
+            if tex not in texture_index:
+                data = (TEXTURE_DIR / f"{tex}.jpg").read_bytes()
+                images.append({"bufferView": view(data), "mimeType": "image/jpeg", "name": tex})
+                textures.append({"source": len(images) - 1, "sampler": 0})
+                texture_index[tex] = len(textures) - 1
+            pbr["baseColorTexture"] = {"index": texture_index[tex]}
+        materials.append({"name": name, "pbrMetallicRoughness": pbr})
+        material_index[name] = len(materials) - 1
+        return material_index[name]
+
+    for key in sorted(scene.parts):
+        pos, faces, uv = part_arrays(scene, key, tiles)
         if len(faces) == 0:
             continue
-        v = np.c_[verts[:, 0] - ox, verts[:, 2] - oz, -(verts[:, 1] - oy)].astype(np.float32)
-        m = scene.materials[material]
-        tm = trimesh.Trimesh(vertices=v, faces=faces, process=False)
-        tm.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
-            name=material, baseColorFactor=[*m["color"], m["opacity"]],
-            roughnessFactor=m["roughness"], metallicFactor=m["metallic"]))
-        name = f"{group}|{cls}|{material}"
-        out.add_geometry(tm, node_name=name, geom_name=name)
+        yup = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]].astype(np.float32)
+        attributes = {"POSITION": accessor(yup, "VEC3", 5126, 34962, bounds=True)}
+        if uv is not None:
+            attributes["TEXCOORD_0"] = accessor(uv.astype(np.float32), "VEC2", 5126, 34962)
+        indices = accessor(faces.astype(np.uint32).ravel(), "SCALAR", 5125, 34963)
+        name = "|".join(key)
+        meshes.append({"name": name, "primitives": [{
+            "attributes": attributes, "indices": indices, "material": material_id(key[2])}]})
+        nodes.append({"name": name, "mesh": len(meshes) - 1})
+
+    doc = {"asset": {"version": "2.0", "generator": "campus-rover"}, "scene": 0,
+           "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
+           "materials": materials, "accessors": accessors, "bufferViews": views,
+           "buffers": [{"byteLength": len(blob)}]}
+    if textures:
+        doc.update(textures=textures, images=images,
+                   samplers=[{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497,
+                              "wrapT": 10497}])
+    text = json.dumps(doc, separators=(",", ":")).encode()
+    text += b" " * (-len(text) % 4)
+    while len(blob) % 4:
+        blob.append(0)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(out.export(file_type="glb"))
+    with open(path, "wb") as f:
+        f.write(struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(text) + 8 + len(blob)))
+        f.write(struct.pack("<I4s", len(text), b"JSON") + text)
+        f.write(struct.pack("<I4s", len(blob), b"BIN\x00") + bytes(blob))
 
 
 def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
-    """OpenUSD for Isaac Sim: Z up, meters, a semantic label and a preview material on
-    every mesh, collision on the static world."""
+    """OpenUSD for Isaac Sim: Z up, meters, a semantic label and a preview material
+    (with its texture) on every mesh, collision on the static world. Textures are
+    copied to a `textures` folder next to the file."""
+    import shutil
+
     from .usd_export import _require_usd
 
     Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdSemantics, Vt = _require_usd()
     from pxr import UsdShade
 
+    tiles = texture_info()
     path.parent.mkdir(parents=True, exist_ok=True)
     stage = Usd.Stage.CreateNew(str(path))
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
@@ -609,31 +770,56 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
     }
     looks = {}
     for name, m in scene.materials.items():
-        mat = UsdShade.Material.Define(stage, f"/World/Looks/{_usd_name(name)}")
-        shader = UsdShade.Shader.Define(stage, f"/World/Looks/{_usd_name(name)}/Shader")
+        base = f"/World/Looks/{_usd_name(name)}"
+        mat = UsdShade.Material.Define(stage, base)
+        shader = UsdShade.Shader.Define(stage, f"{base}/Shader")
         shader.CreateIdAttr("UsdPreviewSurface")
-        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*m["color"]))
+        diffuse = shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
         shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(m["roughness"])
         shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(m["metallic"])
+        if m.get("texture"):
+            (path.parent / "textures").mkdir(exist_ok=True)
+            shutil.copy(TEXTURE_DIR / f"{m['texture']}.jpg", path.parent / "textures")
+            reader = UsdShade.Shader.Define(stage, f"{base}/st")
+            reader.CreateIdAttr("UsdPrimvarReader_float2")
+            reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+            tex = UsdShade.Shader.Define(stage, f"{base}/Texture")
+            tex.CreateIdAttr("UsdUVTexture")
+            tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"./textures/{m['texture']}.jpg")
+            tex.CreateInput("wrapS", Sdf.ValueTypeNames.Token).Set("repeat")
+            tex.CreateInput("wrapT", Sdf.ValueTypeNames.Token).Set("repeat")
+            tex.CreateInput("scale", Sdf.ValueTypeNames.Float4).Set(Gf.Vec4f(*m["color"], 1.0))
+            tex.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+                reader.ConnectableAPI(), "result")
+            tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+            diffuse.ConnectToSource(tex.ConnectableAPI(), "rgb")
+        else:
+            diffuse.Set(Gf.Vec3f(*m["color"]))
         mat.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
         looks[name] = mat
-    for (group, cls, material), mesh in sorted(scene.parts.items()):
-        verts, faces = mesh.arrays()
+    for key in sorted(scene.parts):
+        group, cls, material = key
+        local, faces, uv = part_arrays(scene, key, tiles)
         if len(faces) == 0:
             continue
         prim_path = "/World/" + "/".join(_usd_name(p) for p in group.split("/"))
         for depth in range(2, prim_path.count("/") + 1):
             UsdGeom.Xform.Define(stage, "/".join(prim_path.split("/")[:depth + 1]))
         m = UsdGeom.Mesh.Define(stage, f"{prim_path}/{_usd_name(cls)}__{_usd_name(material)}")
-        local = (verts - np.array([ox, oy, oz])).astype(np.float32)
+        local = local.astype(np.float32)
         m.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(local))
         m.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(faces), 3, dtype=np.int32)))
         m.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(faces.astype(np.int32).ravel()))
         m.CreateSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
         m.CreateDoubleSidedAttr().Set(cls in ("tree",))
-        m.CreateDisplayColorPrimvar().Set(Vt.Vec3fArray([Gf.Vec3f(*scene.materials[material]["color"])]))
+        m.CreateDisplayColorPrimvar().Set(
+            Vt.Vec3fArray([Gf.Vec3f(*scene.materials[material]["color"])]))
         m.CreateExtentAttr(Vt.Vec3fArray([Gf.Vec3f(*local.min(axis=0).tolist()),
                                           Gf.Vec3f(*local.max(axis=0).tolist())]))
+        if uv is not None:
+            st = UsdGeom.PrimvarsAPI(m.GetPrim()).CreatePrimvar(
+                "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex)
+            st.Set(Vt.Vec2fArray.FromNumpy(uv.astype(np.float32)))
         UsdSemantics.LabelsAPI.Apply(m.GetPrim(), "class").CreateLabelsAttr().Set([cls])
         UsdShade.MaterialBindingAPI.Apply(m.GetPrim()).Bind(looks[material])
         if collision:

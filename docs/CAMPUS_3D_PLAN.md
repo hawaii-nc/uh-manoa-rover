@@ -185,7 +185,7 @@ Each step ends in something you can look at.
 | P1 Shape | Done for the corridor: lidar terrain, roof-level massing, trees, walkway graph |
 | P2 Generator | Done: windows, sun shading, ground floors, doors, flat and pitched roofs |
 | P3 Style sheets | Done for all 95 campus buildings in the corridor, each from UH's photo. No look is guessed from the year built; buildings with no evidence stay plain grey. Needs your review. |
-| P4 Ground detail | Started: road / walkway / grass from lidar. No curbs, steps or textures yet. |
+| P4 Ground detail | Done for the corridor: surfaces, painted curbs, 1,518 stair treads, walls, ramps and painted lines from UH's land-cover layer, with CC0 textures. Light poles and wall heights under trees still to do. |
 | P5 Agents | First pass: procedural stand-ins placed by the crowd model, two scenarios. Rigged assets still to do. |
 | P6 Training data | Not started. Needs Isaac Sim on an RTX GPU. |
 

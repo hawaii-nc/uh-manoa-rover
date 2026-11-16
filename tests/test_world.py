@@ -364,3 +364,160 @@ def test_query_layer_can_filter_by_box():
     query_layer("https://x/FeatureServer/0", "EPSG:32604", fetch=fake, bbox=(1, 2, 3, 4))
     assert seen["geometry"] == "1,2,3,4" and seen["geometryType"] == "esriGeometryEnvelope"
     assert seen["inSR"] == 32604
+
+
+# ---- ground detail: surfaces, curbs, stairs, walls, textures --------------------------
+
+
+def sloped_rasters(slope: float = 0.1) -> Rasters:
+    """40 x 40 m of ground rising along +y: z = 100 + slope * y."""
+    r = synthetic_rasters(lambda x, y: np.zeros_like(x))
+    ys = (np.arange(r.shape[0]) + 0.5) * r.res
+    r.dtm = 100.0 + slope * np.repeat(ys[:, None], r.shape[1], axis=1)
+    return r
+
+
+def test_split_by_grid_keeps_area_and_limits_piece_size():
+    from campus_rover.ground import split_by_grid
+
+    ring = box(1, 1, 21, 12).difference(box(8, 4, 12, 8))
+    pieces = split_by_grid(ring, cell=3.0)
+    assert sum(p.area for p in pieces) == pytest.approx(ring.area)
+    assert all(p.bounds[2] - p.bounds[0] <= 3.0 + 1e-9 for p in pieces)
+    assert split_by_grid(box(0, 0, 1, 1), cell=3.0)[0].area == 1.0
+
+
+def test_draped_surface_follows_the_slope_and_curb_stands_above_it():
+    from campus_rover.ground import CURB_HEIGHT_M, drape, raise_polygon
+
+    rasters = sloped_rasters(0.1)
+    flat, curb = Mesh(), Mesh()
+    drape(flat, box(5, 5, 15, 30), rasters.ground_z)
+    v, _ = flat.arrays()
+    assert np.allclose(v[:, 2], 100 + 0.1 * v[:, 1], atol=0.03)
+    assert mesh_area(flat) == pytest.approx(250 * math.hypot(1, 0.1), rel=0.01)
+    raise_polygon(curb, box(20, 5, 20.3, 30), rasters.ground_z, CURB_HEIGHT_M)
+    v, _ = curb.arrays()
+    top = v[:, 2] - (100 + 0.1 * v[:, 1])
+    assert top.max() == pytest.approx(CURB_HEIGHT_M, abs=0.03) and top.min() < 0
+
+
+def test_stair_treads_come_out_as_flat_steps():
+    from campus_rover.ground import add_stair_tread
+
+    rasters = sloped_rasters(0.5)           # a 1-in-2 flight
+    mesh, heights = Mesh(), []
+    for i in range(6):                      # six treads, 0.3 m deep, climbing along +y
+        tread = box(10, 10 + 0.3 * i, 12, 10 + 0.3 * (i + 1))
+        heights.append(add_stair_tread(mesh, tread, rasters.ground_z))
+    rises = np.diff(heights)
+    assert np.allclose(rises, 0.15, atol=0.02)          # 0.3 m tread x 0.5 slope
+    v, f = mesh.arrays()
+    up = np.cross(v[f[:, 1]] - v[f[:, 0]], v[f[:, 2]] - v[f[:, 0]])[:, 2] > 1e-9
+    tops = v[f[up]][:, :, 2]
+    assert np.allclose(tops.max(axis=1), tops.min(axis=1))     # every tread is level
+
+
+def test_wall_height_is_measured_or_left_flat():
+    from campus_rover.ground import add_landcover, measured_height
+
+    rasters = synthetic_rasters(lambda x, y: np.zeros_like(x))
+    low = np.full(rasters.shape, np.nan)
+    low[20:40, 20:24] = 100.9                # a 0.9 m wall the lidar saw
+    low[20:40, 60:64] = 112.0                # tree canopy over the second wall: not a wall top
+    rasters.dsm_low = low
+    seen, hidden = box(10, 10, 12, 20), box(30, 10, 32, 20)
+    assert measured_height(seen, rasters) == pytest.approx(0.9)
+    assert measured_height(hidden, rasters) is None
+    scene = Scene()
+    report = add_landcover(scene, [(seen, "wall", None), (hidden, "rock_wall", None),
+                                   (box(0, 0, 9, 9), "walkway", None),
+                                   (box(0, 20, 5, 20.3), "curb", "red"),
+                                   (box(0, 30, 5, 35), "not_a_class", None)],
+                           rasters, rasters.bounds)
+    assert report["walls"] == {"measured": 1, "flat": 1}
+    assert report["polygons"] == {"wall": 2, "walkway": 1, "curb": 1}
+    classes = {(cls, mat) for (_, cls, mat), m in scene.parts.items() if m.count}
+    assert ("curb", "paint_red") in classes and ("walkway", "ground_walkway") in classes
+    wall_top = max(m.arrays()[0][:, 2].max() for (_, c, _), m in scene.parts.items() if c == "wall")
+    assert wall_top == pytest.approx(100.9)
+
+
+def test_coarse_grid_and_painted_lines():
+    from campus_rover.ground import add_painted_lines, coarse_grid
+
+    rasters = synthetic_rasters(lambda x, y: np.zeros_like(x))
+    feats = [(box(0, 0, 40, 20), "road", None), (box(10, 5, 20, 10), "walkway", None),
+             (box(0, 20, 20, 40), "grass", None)]
+    grid, covered = coarse_grid(feats, rasters)
+    assert grid[4, 4] == 2 and grid[14, 30] == 1 and grid[60, 10] == 0
+    assert covered[4, 4] and not covered[70, 70]
+    scene = Scene()
+    n = add_painted_lines(scene, [([(5, 5), (15, 5), (15, 9)], "white"),
+                                  ([(500, 500), (510, 500)], "orange")], rasters, rasters.bounds)
+    assert n == 2 and ("ground", "road_marking", "paint_white") in scene.parts
+
+
+def test_landcover_config_maps_source_types_to_classes(tmp_path):
+    from campus_rover.world import load_ground_lines, load_landcover
+
+    square = {"type": "Polygon", "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]]}
+    path = tmp_path / "lc.json"
+    path.write_text(json.dumps([
+        {"properties": {"SURFACE_TYPE": "Curbs", "NOTES": "Red - Faded"}, "geometry": square},
+        {"properties": {"SURFACE_TYPE": "Stairs", "NOTES": None}, "geometry": square},
+        {"properties": {"SURFACE_TYPE": "Poles"}, "geometry": square}]))
+    cfg = {"field": "SURFACE_TYPE", "paint_field": "NOTES",
+           "classes": {"Curbs": "curb", "Stairs": "stairs"}}
+    feats = load_landcover(path, cfg)
+    assert [(c, p) for _, c, p in feats] == [("curb", "red"), ("stairs", None)]
+    lines = tmp_path / "lines.json"
+    lines.write_text(json.dumps([
+        {"properties": {"CAT": "ParkingLotLines", "D": "orange"},
+         "geometry": {"type": "LineString", "coordinates": [[0, 0], [1, 0]]}},
+        {"properties": {"CAT": "FencesGates", "D": None},
+         "geometry": {"type": "LineString", "coordinates": [[0, 0], [1, 0]]}}]))
+    got = load_ground_lines(lines, {"category_field": "CAT", "categories": ["ParkingLotLines"],
+                                    "colour_field": "D"})
+    assert got == [([(0.0, 0.0), (1.0, 0.0)], "orange")]
+
+
+def test_textures_are_shared_and_carried_by_both_exports(tmp_path):
+    import struct
+
+    from pxr import Usd, UsdGeom
+
+    scene = Scene()
+    for name, hex_color in (("a", "#cc8866"), ("b", "#6688cc")):       # two tints, one texture
+        mat = scene.color_material("wall", hex_color, texture="plaster")
+        scene.mesh(f"buildings/{name}", "building", mat).box((0, 0, 0), (4, 2, 3))
+    scene.mesh("ground", "walkway", scene.material("ground_walkway", (0.8, 0.8, 0.8),
+                                                   texture="concrete")).quad(
+        (0, 0, 0), (6, 0, 0), (6, 6, 0), (0, 6, 0))
+    export_glb(scene, tmp_path / "t.glb")
+    raw = (tmp_path / "t.glb").read_bytes()
+    doc = json.loads(raw[20:20 + struct.unpack("<I", raw[12:16])[0]])
+    assert len(doc["images"]) == 2 and len(doc["materials"]) == 3      # plaster stored once
+    assert all("TEXCOORD_0" in m["primitives"][0]["attributes"] for m in doc["meshes"])
+    by_name = {m["name"]: m for m in doc["meshes"]}
+    wall = by_name["buildings/a|building|wall_cc8866"]["primitives"][0]["attributes"]
+    assert doc["accessors"][wall["POSITION"]]["count"] == 36           # one vertex per corner
+    ground = by_name["ground|walkway|ground_walkway"]["primitives"][0]["attributes"]
+    assert doc["accessors"][ground["POSITION"]]["count"] == 4          # ground keeps its 4
+
+    export_usd(scene, tmp_path / "t.usda")
+    assert (tmp_path / "textures" / "plaster.jpg").exists()
+    stage = Usd.Stage.Open(str(tmp_path / "t.usda"))
+    mesh = stage.GetPrimAtPath("/World/ground/walkway__ground_walkway")
+    st = UsdGeom.PrimvarsAPI(mesh).GetPrimvar("st").Get()
+    assert len(st) == 4 and max(v[0] for v in st) == pytest.approx(2.0)   # 6 m / 3 m tile
+
+
+def test_bundled_textures_are_all_cc0_with_a_source():
+    from campus_rover.world import TEXTURE_DIR, texture_info
+
+    info = texture_info()
+    assert {"asphalt", "concrete", "grass", "plaster", "bark"} <= set(info)
+    for name, entry in info.items():
+        assert (TEXTURE_DIR / f"{name}.jpg").exists() and entry["licence"] == "CC0"
+        assert entry["source"].startswith("https://polyhaven.com/a/")

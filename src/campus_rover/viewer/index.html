@@ -64,7 +64,10 @@ controls.maxPolarAngle = Math.PI * 0.495;
 const LABEL = { grass: 0x4caf50, walkway: 0xffd54f, road: 0x455a64, building: 0xb0703c,
   window: 0x29b6f6, door: 0x6d4c41, roof: 0x8d6e63, tree: 0x1b5e20, person: 0xe53935,
   bicycle: 0xab47bc, skateboard: 0xec407a, car: 0x1e88e5, cart: 0x00acc1, chicken: 0xff7043,
-  cat: 0xffa726 };
+  cat: 0xffa726, curb: 0xff6f00, stairs: 0xd500f9, ramp: 0x00e5ff, wall: 0x795548,
+  planter: 0x8bc34a, gravel: 0xbdbdbd, rock: 0x616161, dirt: 0xa1887f, water: 0x2962ff,
+  sports_court: 0x00bfa5, road_marking: 0xffffff };
+const GROUND = ['walkway', 'road', 'grass', 'ramp', 'stairs', 'planter', 'gravel', 'rock', 'dirt', 'sports_court'];
 const meshes = [];
 let agentsRoot = null, routeLine = null, report = null, routePts = [];
 
@@ -75,6 +78,7 @@ function prepare(root) {
     o.userData.cls = cls;
     o.userData.real = o.material;
     if (cls === 'tree') o.material.side = THREE.DoubleSide;
+    if (o.material.map) o.material.map.anisotropy = 8;      // keeps ground textures sharp at low angles
     o.userData.label = new THREE.MeshBasicMaterial({ color: LABEL[cls] ?? 0x9e9e9e,
       side: cls === 'tree' ? THREE.DoubleSide : THREE.FrontSide });
     meshes.push(o);
@@ -88,7 +92,7 @@ function toViewer(x, y, z) {           // site coordinates -> viewer (y up)
 }
 function groundAt(v) {                 // height of the terrain under a viewer point
   const ray = new THREE.Raycaster(new THREE.Vector3(v.x, 500, v.z), new THREE.Vector3(0, -1, 0));
-  const hit = ray.intersectObjects(meshes.filter((m) => ['walkway', 'road', 'grass'].includes(m.userData.cls)))[0];
+  const hit = ray.intersectObjects(meshes.filter((m) => GROUND.includes(m.userData.cls)))[0];
   return hit ? hit.point.y : 0;
 }
 function press(id, on) { document.getElementById(id).setAttribute('aria-pressed', on); }

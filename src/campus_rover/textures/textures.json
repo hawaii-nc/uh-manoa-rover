@@ -1,0 +1,74 @@
+{
+ "asphalt": {
+  "polyhaven_id": "asphalt_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/asphalt_02",
+  "licence": "CC0",
+  "tile_m": 4.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "concrete": {
+  "polyhaven_id": "concrete_floor_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/concrete_floor_02",
+  "licence": "CC0",
+  "tile_m": 3.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "grass": {
+  "polyhaven_id": "leafy_grass",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/leafy_grass",
+  "licence": "CC0",
+  "tile_m": 3.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "gravel": {
+  "polyhaven_id": "rocks_ground_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/rocks_ground_02",
+  "licence": "CC0",
+  "tile_m": 2.5,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "rock_wall": {
+  "polyhaven_id": "rustic_stone_wall_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/rustic_stone_wall_02",
+  "licence": "CC0",
+  "tile_m": 2.5,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "soil": {
+  "polyhaven_id": "forrest_ground_01",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/forrest_ground_01",
+  "licence": "CC0",
+  "tile_m": 3.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "bark": {
+  "polyhaven_id": "bark_brown_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/bark_brown_02",
+  "licence": "CC0",
+  "tile_m": 1.5,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "plaster": {
+  "polyhaven_id": "white_plaster_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/white_plaster_02",
+  "licence": "CC0",
+  "tile_m": 3.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "roof_tiles": {
+  "polyhaven_id": "clay_roof_tiles_02",
+  "mode": "detail",
+  "source": "https://polyhaven.com/a/clay_roof_tiles_02",
+  "licence": "CC0",
+  "tile_m": 2.0,
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ }
+}

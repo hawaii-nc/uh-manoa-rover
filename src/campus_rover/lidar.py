@@ -9,6 +9,7 @@ a bounding box:
 - `dsm_veg`    highest vegetation return per cell (NaN where there is none)
 - `intensity`  mean return strength of ground points (tells asphalt from grass)
 - `ground_n`   how many ground points fell in each cell
+- `dsm_low`    lowest solid return per cell: the top of low walls, under any canopy
 - `roof_intensity`  mean return strength of roof points (how light or dark a roof is)
 
 Reading LAZ needs `laspy[lazrs]`; everything after the read is plain NumPy,
@@ -42,6 +43,7 @@ class Rasters:
     intensity: np.ndarray
     ground_n: np.ndarray
     roof_intensity: np.ndarray | None = None   # mean return strength of roof points
+    dsm_low: np.ndarray | None = None          # lowest solid return per cell (wall tops)
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -71,6 +73,7 @@ class Rasters:
             intensity=self.intensity.astype(np.float32), ground_n=self.ground_n.astype(np.uint16),
             **({} if self.roof_intensity is None
                else {"roof_intensity": self.roof_intensity.astype(np.float32)}),
+            **({} if self.dsm_low is None else {"dsm_low": self.dsm_low.astype(np.float32)}),
         )
 
     def shift_z(self, dz: float) -> None:
@@ -78,6 +81,8 @@ class Rasters:
         self.dtm = self.dtm + dz
         self.dsm_bldg = self.dsm_bldg + dz
         self.dsm_veg = self.dsm_veg + dz
+        if self.dsm_low is not None:
+            self.dsm_low = self.dsm_low + dz
 
     @classmethod
     def load(cls, path: Path) -> Rasters:
@@ -85,7 +90,8 @@ class Rasters:
         return cls(float(d["x0"]), float(d["y0"]), float(d["res"]), d["dtm"].astype(float),
                    d["dsm_bldg"].astype(float), d["dsm_veg"].astype(float),
                    d["intensity"].astype(float), d["ground_n"],
-                   d["roof_intensity"].astype(float) if "roof_intensity" in d else None)
+                   d["roof_intensity"].astype(float) if "roof_intensity" in d else None,
+                   d["dsm_low"].astype(float) if "dsm_low" in d else None)
 
 
 def bilinear(grid: np.ndarray, col, row):
@@ -114,6 +120,7 @@ class Gridder:
         self.i_n = np.zeros(n)
         self.r_sum = np.zeros(n)
         self.r_n = np.zeros(n)
+        self.low = np.full(n, np.inf)
         self.bldg = np.full(n, -np.inf)
         self.veg = np.full(n, -np.inf)
 
@@ -150,6 +157,7 @@ class Gridder:
         np.maximum.at(self.bldg, idx[b], z[b])
         np.add.at(self.r_sum, idx[b], intensity[b])
         np.add.at(self.r_n, idx[b], 1)
+        np.minimum.at(self.low, idx[b], z[b])
         v = np.isin(cls, VEGETATION) | leafy
         np.maximum.at(self.veg, idx[v], z[v])
         return int(ok.sum())
@@ -165,11 +173,13 @@ class Gridder:
         bldg[~np.isfinite(bldg)] = np.nan
         veg = self.veg.reshape(shape).copy()
         veg[~np.isfinite(veg)] = np.nan
+        low = self.low.reshape(shape).copy()
+        low[~np.isfinite(low)] = np.nan
         with np.errstate(invalid="ignore", divide="ignore"):
             r_n = self.r_n.reshape(shape)
             roof_i = np.where(r_n > 0, self.r_sum.reshape(shape) / r_n, np.nan)
         return Rasters(self.x0, self.y0, self.res, fill_holes(dtm), bldg, veg,
-                       fill_holes(inten), n, roof_i)
+                       fill_holes(inten), n, roof_i, low)
 
 
 def fill_holes(grid: np.ndarray, smooth_passes: int = 2) -> np.ndarray:

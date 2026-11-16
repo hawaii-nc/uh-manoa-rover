@@ -10,6 +10,7 @@ Each one has a single job:
 | State of Hawaiʻi 100 ft contours   | Check the lidar terrain |
 | Honolulu zoning                    | Record the land-use zones in the corridor |
 | PacIOOS GeoServer                  | Government land ownership, watershed, streams |
+| UH campus map: land cover, lines   | Ground surfaces, curbs, stairs, walls, painted lines |
 
 `fetch_open_data` writes one JSON file per source plus `provenance.json`, which
 says what was asked, when, and how many features came back. The checks
@@ -52,6 +53,25 @@ SOURCES = {
         "url": "https://geodata.hawaii.gov/arcgis/rest/services/Elevation/MapServer/8",
     },
 }
+_UH = "https://map.hawaii.edu/server/rest/services"
+_UH_NAME = "University of Hawaiʻi at Mānoa, campus map services"
+SOURCES.update({
+    "uh_landcover": {
+        "title": "MA Landcover (surfaces, curbs, stairs, walls, ramps, planters)",
+        "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
+        "url": f"{_UH}/MA/MA_LandcoverLive/FeatureServer/0",
+    },
+    "uh_basemap_lines": {
+        "title": "MA basemap lines (parking and sports-field lines, fences)",
+        "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
+        "url": f"{_UH}/MA/MA_CommunityMaps_Prep/MapServer/3",
+    },
+    "uh_light_poles": {
+        "title": "MA Light Poles",
+        "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
+        "url": f"{_UH}/MA/MA_LightPoles/FeatureServer/0",
+    },
+})
 PACIOOS_WFS = "https://geo.pacioos.hawaii.edu/geoserver/PACIOOS/ows"
 PACIOOS_LAYERS = {
     "pacioos_gov_land": ("PACIOOS:hi_hcgg_all_govjurisdiction",

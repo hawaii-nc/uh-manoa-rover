@@ -38,11 +38,12 @@ def generate_building(scene: Scene, group: str, massing: Massing, style: Style,
     """Build one building. `door_points` are mapped door positions (x, y): doors are
     only placed there, never guessed. `roof_color` is used when the style sheet
     leaves the roof colour open (e.g. a grey measured from lidar)."""
-    wall_mat = scene.color_material("wall", style.wall, roughness=0.9)
-    trim_mat = scene.color_material("trim", style.trim, roughness=0.85)
+    wall_mat = scene.color_material("wall", style.wall, roughness=0.9, texture="plaster")
+    trim_mat = scene.color_material("trim", style.trim, roughness=0.85, texture="plaster")
     glass_mat = scene.color_material("glass", style.glass, roughness=0.15, metallic=0.4)
     roof_mat = scene.color_material("roof", style.roof or roof_color or DEFAULT_ROOF,
-                                    roughness=0.95)
+                                    roughness=0.95,
+                                    texture="roof_tiles" if massing.pitched else "gravel")
     door_mat = scene.color_material("door", style.door, roughness=0.6)
     dark_mat = scene.material("shadow", (0.08, 0.08, 0.09), roughness=1.0)
 

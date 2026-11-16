@@ -82,3 +82,38 @@ world:
     - https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid12b/10331/blk_2/20230127_4QFJ225555.copc.laz
     - https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid12b/10331/blk_2/20230309_4QFJ230550.copc.laz
     - https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid12b/10331/blk_2/20230218_4QFJ230555.copc.laz
+  # Surveyed ground from UH's campus map: every paved area, lawn, curb, wall, ramp and
+  # stair tread as a polygon. Keys are the layer's SURFACE_TYPE values.
+  landcover:
+    file: cache/opendata/uh_landcover.json
+    field: SURFACE_TYPE
+    paint_field: NOTES            # painted curbs: Red, Yellow, Green, Blue
+    classes:
+      Streets: road
+      Hardscape asphalt: road
+      Parking lots: road
+      Walkways: walkway
+      Hardscape cement: walkway
+      Stepstones: walkway
+      Buildings: walkway          # the slab under a building
+      Ramp: ramp
+      Stairs: stairs
+      Curbs: curb
+      Wall: wall
+      Rock Wall: rock_wall
+      Grass: grass
+      Planter beds: planter
+      Ivy: planter
+      Gravel: gravel
+      Rock: rock
+      Dirt: dirt
+      Pools/ fountains: water
+      Lakes or ponds: water
+      Canals or ditches: water
+      Tennis courts - interior: sports_court
+      Tennis courts - exterior: sports_court
+  ground_lines:
+    file: cache/opendata/uh_basemap_lines.json
+    category_field: ESRI_CATEGORY
+    categories: [ParkingLotLines, SportsFieldLines]
+    colour_field: DESCRIPTION

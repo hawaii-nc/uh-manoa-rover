@@ -4,7 +4,7 @@ A `Scene` holds triangle meshes grouped by (group, class, material):
 
 - `group`     where it sits in the scene tree, e.g. "buildings/holmes_hall"
 - `class`     the semantic label a perception model learns, e.g. "window"
-- `material`  a name in `Scene.materials` (colour, roughness, metalness)
+- `material`  a name in `Scene.materials` (colour, roughness, metalness, texture)
 
 Coordinates are meters, Z up. Faces are counter-clockwise seen from outside.
 Only NumPy is needed here; polygon capping uses `mapbox_earcut`.
@@ -99,6 +99,11 @@ class Mesh:
             faces = faces[:, ::-1]
         self.add(np.c_[verts, np.full(len(verts), z)], faces)
 
+    def sloped_wall(self, p, q, zp0: float, zp1: float, zq0: float, zq1: float) -> None:
+        """Wall from p to q whose bottom and top follow the ground: different heights
+        at each end. Faces right of p -> q."""
+        self.quad((p[0], p[1], zp0), (q[0], q[1], zq0), (q[0], q[1], zq1), (p[0], p[1], zp1))
+
     def prism_walls(self, polygon, z0: float, z1: float) -> None:
         for ring in polygon_rings(polygon):
             for p, q in zip(ring, ring[1:] + ring[:1], strict=True):
@@ -192,10 +197,11 @@ class Scene:
         return self.parts.setdefault((group, cls, material), Mesh())
 
     def material(self, name: str, color, roughness: float = 0.9, metallic: float = 0.0,
-                 opacity: float = 1.0) -> str:
+                 opacity: float = 1.0, texture: str | None = None) -> str:
+        """`texture` names a tiling detail map in campus_rover/textures; `color` tints it."""
         self.materials.setdefault(name, {
             "color": tuple(float(c) for c in color), "roughness": roughness,
-            "metallic": metallic, "opacity": opacity,
+            "metallic": metallic, "opacity": opacity, "texture": texture,
         })
         return name
 
