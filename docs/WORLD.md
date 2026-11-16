@@ -139,6 +139,10 @@ Pulling Google Street View panoramas and rebuilding the campus from them is not 
 
 The same technique works on imagery you are allowed to use: a 360° photo with known coordinates is projected onto the model to check and colour it. Sources that qualify are your own 360° or phone footage of the routes, and Mapillary (CC BY-SA, with coordinates) if it has coverage on campus.
 
+### Building photos
+
+UH's campus map serves several photos per building (`<number>_01.jpg`, `_02.jpg`, ...). Every style sheet cites the ones it was read from; Holmes Hall, Campus Center and the Architecture building use three to five each. Wikimedia Commons was also tried as a second source, but it rate-limits the cloud build session, so no Commons photos are used yet.
+
 ## Scenarios
 
 A scenario is a small file in `sites/<site>/scenarios/`:
