@@ -20,9 +20,10 @@ usd = ["usd-core>=25.5"]
 # 3D world builder. `world-data` adds what is only needed to download lidar and map data.
 world = ["numpy>=1.26", "scipy>=1.11", "shapely>=2.0", "mapbox-earcut>=1.0", "trimesh>=4.0",
          "pillow>=10.0", "usd-core>=25.5"]
-world-data = ["laspy[lazrs]>=2.5", "pyarrow>=15", "pyproj>=3.6"]
+world-data = ["laspy[lazrs]>=2.5", "pyarrow>=15", "pyproj>=3.6", "fast-simplification>=0.1"]
 dev = ["pytest>=8", "ruff>=0.6", "matplotlib>=3.8", "usd-core>=25.5", "numpy>=1.26",
-       "scipy>=1.11", "shapely>=2.0", "mapbox-earcut>=1.0", "trimesh>=4.0", "pillow>=10.0"]
+       "scipy>=1.11", "shapely>=2.0", "mapbox-earcut>=1.0", "trimesh>=4.0", "pillow>=10.0",
+       "fast-simplification>=0.1"]
 
 [project.scripts]
 campus-rover = "campus_rover.cli:main"

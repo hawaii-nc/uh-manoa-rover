@@ -222,6 +222,17 @@ def cmd_fetch_world_data(args) -> int:  # pragma: no cover - network
     return 0
 
 
+def cmd_fetch_assets(args) -> int:  # pragma: no cover - network
+    from .assets import fetch_assets
+    from .world import WorldConfig
+
+    site = load_site(args.site, args.sites_dir)
+    cfg = WorldConfig.from_site(site)
+    done = fetch_assets(site.root / (cfg.assets or "cache/assets"), force=args.force)
+    print(f"{len(done)} model(s) prepared" if done else "all models already in the cache")
+    return 0
+
+
 def cmd_view(args) -> int:  # pragma: no cover - serves files until interrupted
     import functools
     import http.server
@@ -364,6 +375,11 @@ def build_parser() -> argparse.ArgumentParser:
     data.add_argument("--site", required=True)
     data.add_argument("--force", action="store_true", help="re-download what is already cached")
     data.set_defaults(func=cmd_fetch_world_data)
+
+    models = sub.add_parser("fetch-assets", help="download the free 3D models (benches, lights)")
+    models.add_argument("--site", required=True)
+    models.add_argument("--force", action="store_true")
+    models.set_defaults(func=cmd_fetch_assets)
 
     view = sub.add_parser("view", help="open a built world in the browser viewer")
     view.add_argument("--dir", required=True, help="the folder build-world wrote")

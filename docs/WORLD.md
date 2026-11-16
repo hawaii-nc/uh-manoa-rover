@@ -35,6 +35,7 @@ Every shape, position and colour near the route comes from a named data source. 
 | Doors | UH's Automatic Doors layer | **No door** |
 | Trees | UH tree survey: position, species, height, crown | Height from the lidar canopy |
 | Props | UH campus map layers | Not placed |
+| Street lights | UH's light-pole survey for the position; lidar for the height | **Not drawn** when the lidar shows no pole 2–12 m tall |
 
 Generic "background" buildings are only allowed more than 120 m from the route. The year a building was built is never used to guess its look.
 
@@ -64,7 +65,8 @@ The contour check found that the lidar files measure height from a different ref
 | Walls | 830: 157 with a measured height, 673 drawn flat |
 | Painted line segments | 15,524 |
 | Trees | 2,057: 1,229 with surveyed height, 828 with lidar height |
-| Benches, bins, call boxes, bike racks and more | 752 |
+| Benches, bins, call boxes, bike racks and more | 752, of which 422 benches use a real CC0 model |
+| Street lights | 197 placed at lidar-measured heights; 478 surveyed lights not drawn (bollard and wall lights the lidar cannot size) |
 | People, bikes, skateboards, cars, carts, chickens, cats | 1,335 at a Monday class change |
 
 Every mesh has a semantic label: `road`, `walkway`, `grass`, `curb`, `stairs`, `ramp`, `wall`, `planter`, `gravel`, `rock`, `water`, `sports_court`, `road_marking`, `building`, `window`, `door`, `roof`, `tree`, `person`, `bicycle`, `skateboard`, `car`, `cart`, `chicken`, `cat`, and one per prop type (`bench`, `trash_can`, `emergency_call_box`, ...).
@@ -84,6 +86,10 @@ campus-rover fetch-world-data --site uh_manoa
 ```
 
 ```bash
+campus-rover fetch-assets --site uh_manoa
+```
+
+```bash
 campus-rover build-world --site uh_manoa --out out/uh_manoa --scenario class_change
 ```
 
@@ -93,7 +99,8 @@ campus-rover view --dir out/uh_manoa
 
 - `fetch-layers` downloads the UH campus map layers (buildings, trees, props, doors).
 - `fetch-world-data` downloads walkways and roads, six lidar tiles (about 315 MB), and the official open data listed below. Downloads go to `sites/uh_manoa/cache/`, which is not in git.
-- `build-world` takes about 30 seconds and writes:
+- `fetch-assets` downloads the free 3D models listed in `assets.py`. Without them the build still works and uses simple stand-in shapes.
+- `build-world` takes about 40 seconds and writes:
 
 | File | For |
 |---|---|
@@ -108,6 +115,25 @@ The demo campus builds with no downloads: `campus-rover build-world --site demo_
 ### In Isaac Sim
 
 Open `world.usdc`, add `agents_class_change.usdc` as a sublayer or reference, add a Physics Scene, and drop in the rover. Site coordinates are recentred; the offset is stored in the layer metadata as `campus:originOffset`.
+
+## Free 3D models
+
+A model is stored once and placed many times, so 422 benches cost one bench. `assets.py` lists each model with its source and licence, and `world.json` repeats that under `model_sources`.
+
+| Model | Source | Licence | Placed where |
+|---|---|---|---|
+| Bench | Poly Haven, *painted_wooden_bench* | CC0 | UH's Outdoor Seating points |
+| Street light | Poly Haven, *street_lamp_01* | CC0 | UH's surveyed light poles, scaled to the lidar height |
+
+Both are generic shapes: UH's real benches and lamp types look different. Their positions are real.
+
+**Still stand-ins: people, cars, bikes, animals.** Microsoft's Rocketbox avatars (MIT licence, 115 rigged people) are the right source for people, but they ship as FBX files and the converter could not be run in the cloud build session. No CC0 car, bike or animal source was reachable from that session either. In Isaac Sim, the simplest route is its own bundled people and vehicles.
+
+### Why Street View is not used
+
+Pulling Google Street View panoramas and rebuilding the campus from them is not done here, with either the official API or an unofficial downloader. Google's Maps Platform terms forbid bulk downloading, building 3D models or other content from its imagery, and using it to train machine-learning models; the images are Google's copyright, and this repository is public. See [SCOPE.md §3a](SCOPE.md).
+
+The same technique works on imagery you are allowed to use: a 360° photo with known coordinates is projected onto the model to check and colour it. Sources that qualify are your own 360° or phone footage of the routes, and Mapillary (CC BY-SA, with coordinates) if it has coverage on campus.
 
 ## Scenarios
 
@@ -150,9 +176,9 @@ sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 |---|---|---|
 | Still not a photo | Textures are generic tiling materials, lighting is simple, windows are flat dark panels. The State's aerial imagery is licensed from Maxar, so it is not used. | Splats from your own footage |
 | 673 of 830 walls are flat | The lidar saw no clear wall top there, often under trees | Your photos or notes of wall heights |
-| Light poles are not placed yet | UH's light-pole layer is downloaded (945 poles) but not modelled | Next step |
 | The world file is about 50 MB | Each textured building face needs its own vertices | Fine for Isaac Sim; slower to load in a browser |
-| People and vehicles are blocky | Procedural stand-ins | Rigged assets in Isaac Sim |
+| People and vehicles are blocky | Procedural stand-ins; see "Free 3D models" for what blocked real ones | Rocketbox people once the FBX files can be converted; Isaac Sim's bundled people and vehicles |
+| Benches and street lights are generic shapes | No model of UH's actual furniture exists | Your photos, then matching models |
 | Most buildings have no door | UH maps only automatic doors: 16 in the corridor | Your photos or notes of where entrances are |
 | 13 buildings near the route are plain grey | City or OSM footprints that UH's map does not name, so there is no photo | Tell me what they are; `world.json` lists them as `unverified` |
 | Styles come from one photo each; 47 of them from small thumbnails | UH's campus-map photos | Your corrections; more photos |
@@ -170,5 +196,5 @@ sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 | State of Hawaiʻi GIS, *Oahu Elevation Contours 100ft* | Terrain check |
 | PacIOOS GeoServer: government land ownership, watersheds, streams | Regional context recorded in `world.json`. Its server only offers an older key exchange, so the cipher level is lowered for that host alone; its certificate is still checked. |
 | UH Mānoa Library MAGIS | Consulted as a reference. It serves no machine-readable campus layers. |
-| Poly Haven (CC0) | Nine tiling material textures in `src/campus_rover/textures/`, listed with their sources in `textures.json` |
+| Poly Haven (CC0) | Nine tiling material textures in `src/campus_rover/textures/`, listed with their sources in `textures.json`; the bench and street-light models |
 | © OpenStreetMap contributors (ODbL), via Overture Maps | Walkways, roads, footprints the city layer lacks. `sites/uh_manoa/graph.osm.yaml` is derived from that data. |

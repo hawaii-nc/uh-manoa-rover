@@ -190,6 +190,16 @@ class Scene:
     materials: dict[str, dict] = field(default_factory=dict)
     origin: tuple[float, float, float] = (0.0, 0.0, 0.0)   # subtracted on export
     meta: dict = field(default_factory=dict)
+    assets: dict = field(default_factory=dict)       # name -> assets.Asset, stored once
+    instances: list = field(default_factory=list)    # assets.Instance, one per placement
+
+    def place(self, asset, group: str, x: float, y: float, z: float, yaw: float = 0.0,
+              scale: float = 1.0) -> None:
+        """Put one copy of a shared model in the scene."""
+        from .assets import Instance
+
+        self.assets[asset.name] = asset
+        self.instances.append(Instance(asset.name, group, x, y, z, yaw, scale))
 
     def mesh(self, group: str, cls: str, material: str) -> Mesh:
         if material not in self.materials:
@@ -214,8 +224,11 @@ class Scene:
         by_class: dict[str, int] = {}
         for (_, cls, _), mesh in self.parts.items():
             by_class[cls] = by_class.get(cls, 0) + sum(len(f) for f in mesh.faces)
+        for inst in self.instances:
+            asset = self.assets[inst.asset]
+            by_class[asset.cls] = by_class.get(asset.cls, 0) + asset.triangles
         return {"parts": len(self.parts), "triangles": sum(by_class.values()),
-                "by_class": dict(sorted(by_class.items()))}
+                "instances": len(self.instances), "by_class": dict(sorted(by_class.items()))}
 
 
 def hex_to_rgb(text: str) -> tuple[float, float, float]:

@@ -49,6 +49,8 @@ class WorldConfig:
     vertical_shift_m: float = 0.0       # added to lidar heights to match official contours
     open_data: str | None = None        # folder of official open data (see opendata.py)
     landcover: dict | None = None       # surveyed ground polygons: file, field, classes
+    assets: str | None = "cache/assets"  # prepared free models (campus-rover fetch-assets)
+    light_poles: dict | None = None     # surveyed pole points: file, status_field, keep
     ground_lines: dict | None = None    # painted lines: file, colour_field, categories
     lidar_res: float = 0.5
     terrain_res: float = 1.0
@@ -502,15 +504,48 @@ def build_world(site, scenario=None, route_key: str | None = None,
                  _seed(round(x, 1), round(y, 1)))
         n_trees += 1
 
+    from .assets import load_assets
     from .campus_model import inside_any_building
 
+    library = load_assets(site.root / cfg.assets if cfg.assets else None)
     n_props: dict[str, int] = {}
+    n_models: dict[str, int] = {}
     for prop in model.props:
         x, y = prop.xy
         if prop.cls in INDOOR_PROPS or not inside(x, y, 1.0) or inside_any_building(model, (x, y)):
             continue
-        if add_prop(scene, prop.cls, x, y, float(rasters.ground_z(x, y)), _seed(x, y)):
+        z = float(rasters.ground_z(x, y))
+        if prop.cls in library:        # a real model exists for this kind of object
+            scene.place(library[prop.cls], "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+            n_models[prop.cls] = n_models.get(prop.cls, 0) + 1
             n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
+        elif add_prop(scene, prop.cls, x, y, z, _seed(x, y)):
+            n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
+    # Street lights only where the campus surveyed one, and only with a real model.
+    poles = cfg.light_poles or {}
+    if poles and "street_light" in library and (site.root / poles["file"]).exists():
+        keep = set(poles.get("keep") or [])
+        for f in json.loads((site.root / poles["file"]).read_text()):
+            props, geom = f.get("properties") or {}, f.get("geometry") or {}
+            if geom.get("type") != "Point" or (keep and props.get(
+                    poles.get("status_field", "STATUS")) not in keep):
+                continue
+            if "floor" in str(props.get(poles.get("notes_field", "NOTES")) or "").lower():
+                continue                # mounted on an upper deck of a parking structure
+            x, y = geom["coordinates"][:2]
+            if not inside(x, y, 1.0) or inside_any_building(model, (x, y)):
+                continue
+            # The survey gives the position; the lidar gives the height. A pole the lidar
+            # did not see as 2-12 m tall (bollard lights, wall lights) is not drawn.
+            height = pole_height(rasters, x, y) if has_lidar else None
+            if height is None:
+                n_models["street_light_skipped"] = n_models.get("street_light_skipped", 0) + 1
+                continue
+            angle = props.get(poles.get("angle_field", "ANGLE")) or 0.0
+            lamp = library["street_light"]
+            scene.place(lamp, "props", x, y, float(rasters.ground_z(x, y)),
+                        math.radians(90.0 - float(angle)), scale=height / float(lamp.size[2]))
+            n_models["street_light"] = n_models.get("street_light", 0) + 1
 
     agents_scene, agent_counts = None, {}
     if scenario is not None and graph is not None:
@@ -535,7 +570,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "elevation_m": [round(float(np.nanmin(rasters.dtm)), 1),
                         round(float(np.nanmax(rasters.dtm)), 1)],
         "surface_share": share, "background_buildings": n_background, "trees": n_trees,
-        "tree_height_source": tree_size, "ground": ground_report,
+        "tree_height_source": tree_size, "ground": ground_report, "models": n_models,
+        "model_sources": {name: {"cls": a.cls, **a.meta} for name, a in scene.assets.items()},
         "props": n_props, "agents": agent_counts,
         "route": {"key": route_key, "length_m": round(route_line.length) if route_line else None,
                   "xy": [[round(x, 2), round(y, 2)] for x, y in route_xy]},
@@ -547,6 +583,17 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "mesh": scene.stats(),
     }
     return World(scene, agents_scene, rasters, surface, bbox, report)
+
+
+def pole_height(rasters: Rasters, x: float, y: float) -> float | None:
+    """Height of a pole at (x, y): the lowest solid lidar returns around it, above the
+    ground. Returns None when the lidar shows nothing 2-12 m tall there."""
+    if rasters.dsm_low is None:
+        return None
+    r, c = rasters.cell(x, y)
+    window = (rasters.dsm_low - rasters.dtm)[max(r - 1, 0):r + 2, max(c - 1, 0):c + 2]
+    values = window[np.isfinite(window) & (window >= 2.0) & (window <= 12.0)]
+    return float(np.median(values)) if len(values) else None
 
 
 def _point(xy):
@@ -724,6 +771,38 @@ def export_glb(scene: Scene, path: Path) -> None:
             "attributes": attributes, "indices": indices, "material": material_id(key[2])}]})
         nodes.append({"name": name, "mesh": len(meshes) - 1})
 
+    # Shared models: each written once, then one node per placement.
+    ox, oy, oz = scene.origin
+    asset_mesh: dict[str, int] = {}
+    for inst in scene.instances:
+        asset = scene.assets[inst.asset]
+        if inst.asset not in asset_mesh:
+            prims = []
+            for i, p in enumerate(asset.prims):
+                yup = np.c_[p.verts[:, 0], p.verts[:, 2], -p.verts[:, 1]].astype(np.float32)
+                attributes = {"POSITION": accessor(yup, "VEC3", 5126, 34962, bounds=True)}
+                pbr = {"baseColorFactor": [*p.color, 1.0], "roughnessFactor": 0.85,
+                       "metallicFactor": 0.0}
+                if p.uv is not None and p.image is not None:
+                    uv = np.c_[p.uv[:, 0], 1.0 - p.uv[:, 1]].astype(np.float32)
+                    attributes["TEXCOORD_0"] = accessor(uv, "VEC2", 5126, 34962)
+                    images.append({"bufferView": view(p.image), "mimeType": "image/jpeg",
+                                   "name": f"{asset.name}_{i}"})
+                    textures.append({"source": len(images) - 1, "sampler": 0})
+                    pbr["baseColorTexture"] = {"index": len(textures) - 1}
+                materials.append({"name": f"{asset.name}_{i}", "pbrMetallicRoughness": pbr})
+                prims.append({"attributes": attributes, "material": len(materials) - 1,
+                              "indices": accessor(p.faces.astype(np.uint32).ravel(), "SCALAR",
+                                                  5125, 34963)})
+            meshes.append({"name": f"asset|{asset.cls}|{asset.name}", "primitives": prims})
+            asset_mesh[inst.asset] = len(meshes) - 1
+        half = inst.yaw / 2.0
+        nodes.append({"name": f"{inst.group}|{asset.cls}|{asset.name}",
+                      "mesh": asset_mesh[inst.asset],
+                      "translation": [inst.x - ox, inst.z - oz, -(inst.y - oy)],
+                      "rotation": [0.0, math.sin(half), 0.0, math.cos(half)],
+                      "scale": [inst.scale] * 3})
+
     doc = {"asset": {"version": "2.0", "generator": "campus-rover"}, "scene": 0,
            "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
            "materials": materials, "accessors": accessors, "bufferViews": views,
@@ -825,6 +904,65 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
         if collision:
             UsdPhysics.CollisionAPI.Apply(m.GetPrim())
             UsdPhysics.MeshCollisionAPI.Apply(m.GetPrim()).CreateApproximationAttr().Set("none")
+    # Shared models: one prototype each, referenced by every placement.
+    for name, asset in scene.assets.items():
+        proto = f"/World/Prototypes/{_usd_name(name)}"
+        UsdGeom.Xform.Define(stage, "/World/Prototypes")
+        UsdGeom.Xform.Define(stage, proto)
+        for i, p in enumerate(asset.prims):
+            m = UsdGeom.Mesh.Define(stage, f"{proto}/part_{i}")
+            pts = p.verts.astype(np.float32)
+            m.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(pts))
+            m.CreateFaceVertexCountsAttr(
+                Vt.IntArray.FromNumpy(np.full(len(p.faces), 3, dtype=np.int32)))
+            m.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(p.faces.astype(np.int32).ravel()))
+            m.CreateSubdivisionSchemeAttr().Set(UsdGeom.Tokens.none)
+            m.CreateDisplayColorPrimvar().Set(Vt.Vec3fArray([Gf.Vec3f(*p.color)]))
+            m.CreateExtentAttr(Vt.Vec3fArray([Gf.Vec3f(*pts.min(axis=0).tolist()),
+                                              Gf.Vec3f(*pts.max(axis=0).tolist())]))
+            mat = UsdShade.Material.Define(stage, f"{proto}/Looks/part_{i}")
+            shader = UsdShade.Shader.Define(stage, f"{proto}/Looks/part_{i}/Shader")
+            shader.CreateIdAttr("UsdPreviewSurface")
+            diffuse = shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
+            shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.85)
+            if p.uv is not None and p.image is not None:
+                (path.parent / "textures").mkdir(exist_ok=True)
+                (path.parent / "textures" / f"{name}_{i}.jpg").write_bytes(p.image)
+                st = UsdGeom.PrimvarsAPI(m.GetPrim()).CreatePrimvar(
+                    "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex)
+                st.Set(Vt.Vec2fArray.FromNumpy(p.uv.astype(np.float32)))
+                reader = UsdShade.Shader.Define(stage, f"{proto}/Looks/part_{i}/st")
+                reader.CreateIdAttr("UsdPrimvarReader_float2")
+                reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+                tex = UsdShade.Shader.Define(stage, f"{proto}/Looks/part_{i}/Texture")
+                tex.CreateIdAttr("UsdUVTexture")
+                tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
+                    f"./textures/{name}_{i}.jpg")
+                tex.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
+                    reader.ConnectableAPI(), "result")
+                tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+                diffuse.ConnectToSource(tex.ConnectableAPI(), "rgb")
+            else:
+                diffuse.Set(Gf.Vec3f(*p.color))
+            mat.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
+            UsdShade.MaterialBindingAPI.Apply(m.GetPrim()).Bind(mat)
+            if collision:
+                UsdPhysics.CollisionAPI.Apply(m.GetPrim())
+        UsdGeom.Imageable(stage.GetPrimAtPath(proto)).MakeInvisible()
+    for n, inst in enumerate(scene.instances):
+        asset = scene.assets[inst.asset]
+        parent = "/World/" + "/".join(_usd_name(p) for p in inst.group.split("/"))
+        for depth in range(2, parent.count("/") + 1):
+            UsdGeom.Xform.Define(stage, "/".join(parent.split("/")[:depth + 1]))
+        xf = UsdGeom.Xform.Define(stage, f"{parent}/{_usd_name(inst.asset)}_{n}")
+        prim = xf.GetPrim()
+        prim.GetReferences().AddInternalReference(f"/World/Prototypes/{_usd_name(inst.asset)}")
+        UsdGeom.Imageable(prim).MakeVisible()
+        xf.AddTranslateOp().Set(Gf.Vec3d(inst.x - ox, inst.y - oy, inst.z - oz))
+        xf.AddRotateZOp().Set(math.degrees(inst.yaw))
+        xf.AddScaleOp().Set(Gf.Vec3f(inst.scale, inst.scale, inst.scale))
+        prim.SetInstanceable(True)
+        UsdSemantics.LabelsAPI.Apply(prim, "class").CreateLabelsAttr().Set([asset.cls])
     stage.GetRootLayer().Save()
 
 

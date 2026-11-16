@@ -66,7 +66,7 @@ const LABEL = { grass: 0x4caf50, walkway: 0xffd54f, road: 0x455a64, building: 0x
   bicycle: 0xab47bc, skateboard: 0xec407a, car: 0x1e88e5, cart: 0x00acc1, chicken: 0xff7043,
   cat: 0xffa726, curb: 0xff6f00, stairs: 0xd500f9, ramp: 0x00e5ff, wall: 0x795548,
   planter: 0x8bc34a, gravel: 0xbdbdbd, rock: 0x616161, dirt: 0xa1887f, water: 0x2962ff,
-  sports_court: 0x00bfa5, road_marking: 0xffffff };
+  sports_court: 0x00bfa5, road_marking: 0xffffff, street_light: 0xffeb3b, bench: 0x9c27b0 };
 const GROUND = ['walkway', 'road', 'grass', 'ramp', 'stairs', 'planter', 'gravel', 'rock', 'dirt', 'sports_court'];
 const meshes = [];
 let agentsRoot = null, routeLine = null, report = null, routePts = [];
@@ -74,7 +74,9 @@ let agentsRoot = null, routeLine = null, report = null, routePts = [];
 function prepare(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;
-    const cls = (o.name || o.parent?.name || '').split('|')[1] || 'prop';
+    let named = o;                       // shared models: the label is on a parent node
+    while (named && !(named.name || '').includes('|')) named = named.parent;
+    const cls = (named ? named.name : '').split('|')[1] || 'prop';
     o.userData.cls = cls;
     o.userData.real = o.material;
     if (cls === 'tree') o.material.side = THREE.DoubleSide;

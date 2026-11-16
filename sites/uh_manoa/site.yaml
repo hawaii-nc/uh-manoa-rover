@@ -117,3 +117,8 @@ world:
     category_field: ESRI_CATEGORY
     categories: [ParkingLotLines, SportsFieldLines]
     colour_field: DESCRIPTION
+  # Street lights: UH's surveyed pole positions, drawn with a generic CC0 lamp model.
+  light_poles:
+    file: cache/opendata/uh_light_poles.json
+    status_field: STATUS
+    keep: [Active]

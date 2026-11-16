@@ -17,7 +17,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
 | Map data in | `arcgis.py` (UH map layers), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
-| 3D world | `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
+| 3D world | `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
 Docs: `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
@@ -38,5 +38,6 @@ Before generating any mesh, texture or attribute (building colours, door positio
 - Network code is marked `# pragma: no cover - network`; everything else is tested offline. New features need a test that runs on `demo_campus` or synthetic data.
 - Building looks live in `sites/<site>/buildings/<id>.yaml`. Change the sheet, not the generator, to fix one building. Every sheet needs a `sources` entry.
 - Coordinates are the site CRS in meters (UH: EPSG:32604), Z up. Exports recentre and record the offset.
-- Do not use Google Maps or Street View content, or Mixamo assets (see `docs/SCOPE.md` §3a and `docs/CAMPUS_3D_PLAN.md` §6).
+- Do not use Google Maps or Street View content (official API or unofficial downloaders), or Mixamo assets (see `docs/SCOPE.md` §3a, `docs/CAMPUS_3D_PLAN.md` §6 and `docs/WORLD.md`). The owner has asked for Street View once; the answer and the permitted alternatives are in `docs/WORLD.md`.
+- New 3D models go in `assets.py` with source and licence; CC0, MIT or similar only.
 - This cloud environment cannot reach `overpass-api.de`; use `overture.py`. It has no GPU, so Isaac Sim cannot run here; previews are rendered with the bundled Three.js viewer in headless Chromium.

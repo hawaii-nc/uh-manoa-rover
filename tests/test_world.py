@@ -521,3 +521,101 @@ def test_bundled_textures_are_all_cc0_with_a_source():
     for name, entry in info.items():
         assert (TEXTURE_DIR / f"{name}.jpg").exists() and entry["licence"] == "CC0"
         assert entry["source"].startswith("https://polyhaven.com/a/")
+
+
+# ---- free 3D models placed as shared instances ---------------------------------------
+
+
+def tiny_asset(name="bench", cls="bench"):
+    import io
+
+    import trimesh
+    from PIL import Image
+
+    from campus_rover.assets import from_trimesh
+
+    mesh = trimesh.creation.box(extents=(2.0, 1.0, 0.5))           # Y-up source: 1 m tall
+    mesh.visual = trimesh.visual.TextureVisuals(
+        uv=np.random.default_rng(0).random((len(mesh.vertices), 2)),
+        material=trimesh.visual.material.PBRMaterial(
+            baseColorTexture=Image.new("RGB", (64, 64), (200, 120, 60))))
+    asset = from_trimesh(name, cls, [mesh], meta={"licence": "CC0", "source": "test"})
+    assert io.BytesIO(asset.prims[0].image).read(2) == b"\xff\xd8"    # a JPEG
+    return asset
+
+
+def test_asset_is_turned_z_up_and_survives_the_cache(tmp_path):
+    from campus_rover.assets import Asset, load_assets
+
+    asset = tiny_asset()
+    assert asset.size.tolist() == pytest.approx([2.0, 0.5, 1.0])     # height now on Z
+    assert asset.prims[0].verts[:, 2].min() == 0.0 and asset.triangles == 12
+    asset.save(tmp_path)
+    back = Asset.load(tmp_path, "bench")
+    assert back.triangles == 12 and back.meta["licence"] == "CC0" and back.prims[0].image
+    assert set(load_assets(tmp_path)) == {"bench"} and load_assets(tmp_path / "none") == {}
+    assert Asset.load(tmp_path, "missing") is None
+
+
+def test_big_models_are_simplified_and_flat_coloured():
+    import trimesh
+    from PIL import Image
+
+    from campus_rover.assets import from_trimesh
+
+    ball = trimesh.creation.icosphere(subdivisions=4)                # 5,120 triangles
+    ball.visual = trimesh.visual.TextureVisuals(
+        uv=np.zeros((len(ball.vertices), 2)),
+        material=trimesh.visual.material.PBRMaterial(
+            baseColorTexture=Image.new("RGB", (8, 8), (255, 0, 0))))
+    asset = from_trimesh("lamp", "street_light", [ball], max_tris=400)
+    assert asset.triangles <= 450 and asset.prims[0].image is None
+    assert asset.prims[0].color == pytest.approx((1.0, 0.0, 0.0), abs=0.02)
+
+
+def test_instances_share_one_mesh_in_glb_and_one_prototype_in_usd(tmp_path):
+    import struct
+
+    from pxr import Usd, UsdSemantics
+
+    scene = Scene(origin=(100.0, 200.0, 10.0))
+    asset = tiny_asset()
+    for i in range(3):
+        scene.place(asset, "props", 100.0 + 5 * i, 200.0, 10.0, yaw=math.pi / 2, scale=2.0)
+    assert scene.stats()["by_class"] == {"bench": 36} and scene.stats()["instances"] == 3
+    export_glb(scene, tmp_path / "t.glb")
+    raw = (tmp_path / "t.glb").read_bytes()
+    doc = json.loads(raw[20:20 + struct.unpack("<I", raw[12:16])[0]])
+    assert len(doc["meshes"]) == 1 and len(doc["nodes"]) == 3 and len(doc["images"]) == 1
+    node = doc["nodes"][1]
+    assert node["name"] == "props|bench|bench" and node["translation"] == [5.0, 0.0, 0.0]
+    assert node["rotation"] == pytest.approx([0, math.sin(math.pi / 4), 0, math.cos(math.pi / 4)])
+    assert node["scale"] == [2.0, 2.0, 2.0]
+
+    export_usd(scene, tmp_path / "t.usda")
+    stage = Usd.Stage.Open(str(tmp_path / "t.usda"))
+    inst = stage.GetPrimAtPath("/World/props/bench_1")
+    assert inst.IsInstanceable() and inst.HasAuthoredReferences()
+    assert UsdSemantics.LabelsAPI(inst, "class").GetLabelsAttr().Get() == ["bench"]
+    assert stage.GetPrimAtPath("/World/Prototypes/bench/part_0").IsValid()
+    assert (tmp_path / "textures" / "bench_0.jpg").exists()
+
+
+def test_pole_height_comes_from_lidar_or_is_refused():
+    from campus_rover.world import pole_height
+
+    rasters = synthetic_rasters(lambda x, y: np.zeros_like(x))
+    assert pole_height(rasters, 10, 10) is None                # no low-surface grid at all
+    low = np.full(rasters.shape, np.nan)
+    low[20, 20] = 106.5                                        # a 6.5 m lamp head at (10, 10)
+    low[60, 60] = 100.6                                        # a 0.6 m bollard at (30, 30)
+    rasters.dsm_low = low
+    assert pole_height(rasters, 10.2, 10.2) == pytest.approx(6.5)
+    assert pole_height(rasters, 30.2, 30.2) is None and pole_height(rasters, 5, 35) is None
+
+
+def test_listed_models_have_a_permitted_source():
+    from campus_rover.assets import ASSETS
+
+    for name, spec in ASSETS.items():
+        assert spec["source"] == "polyhaven" and spec["cls"], name      # CC0 only, for now
