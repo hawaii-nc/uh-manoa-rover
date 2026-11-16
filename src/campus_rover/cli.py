@@ -552,7 +552,7 @@ def cmd_build_explorer(args) -> int:
     if scenario is not None:
         scenario.people_scale *= args.people_scale
     world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."),
-                        lite=True)
+                        lite=True, focus_m=args.focus)
     files = build_explorer(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."),
                            max_file_mb=64 if args.hosted else 20, hosted=args.hosted)
     total = 0.0
@@ -657,6 +657,8 @@ def build_parser() -> argparse.ArgumentParser:
     expl.add_argument("--out", required=True, help="output folder")
     expl.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
     expl.add_argument("--route", help="route key that defines the corridor (default: last)")
+    expl.add_argument("--focus", type=float, default=260.0,
+                      help="keep only what lies within this many meters of the route (0 = all)")
     expl.add_argument("--people-scale", type=float, default=1.0,
                       help="multiply the crowd (the hosted page has 64 MiB for everything)")
     expl.add_argument("--hosted", action="store_true",

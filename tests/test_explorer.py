@@ -34,7 +34,8 @@ def test_lite_export_is_smaller_and_keeps_ground_textures(demo, tmp_path):
         raw = path.read_bytes()
         meta = json.loads(raw[20:20 + struct.unpack("<I", raw[12:16])[0]])
         return {m["name"] for m in meta["materials"]
-                if "baseColorTexture" in m["pbrMetallicRoughness"]}
+                if "baseColorTexture" in m["pbrMetallicRoughness"]
+                and not m["name"].startswith(("crown_", "shrub_"))}      # shared plant models
 
     assert textured(lite) <= textured(full)
     assert all(name.startswith(("ground_", "walkway", "road", "grass")) or "ground" in name

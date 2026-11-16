@@ -13,6 +13,7 @@ the walkway graph, so the same code runs offline in tests.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import zlib
@@ -28,6 +29,7 @@ from .meshkit import Scene
 from .overture import ROAD_WIDTH_M
 from .physics import MODEL_COLLISION, collision_for, collision_stats
 from .style import Style, background_style, load_styles, slug, unverified_style
+from .vegetation import place_ground_cover, place_tree
 
 GRASS, WALKWAY, ROAD = 0, 1, 2
 SURFACE_NAMES = {GRASS: "grass", WALKWAY: "walkway", ROAD: "road"}
@@ -337,9 +339,12 @@ class World:
 
 
 def build_world(site, scenario=None, route_key: str | None = None,
-                progress=lambda msg: None, lite: bool = False) -> World:
+                progress=lambda msg: None, lite: bool = False,
+                focus_m: float | None = None) -> World:
     """Build the world. `lite` makes a lighter copy for sharing: simpler tree crowns and no
-    painted ground lines (the same ground, buildings and data)."""
+    painted ground lines (the same ground, buildings and data). `focus_m` keeps only what lies
+    within that many meters of the route: the page host's 64 MiB goes to the ground a rover
+    drives on instead of far-away lawns."""
     from shapely.geometry import LineString
 
     cfg = WorldConfig.from_site(site)
@@ -362,63 +367,6 @@ def build_world(site, scenario=None, route_key: str | None = None,
 
     def inside(x, y, pad=0.0) -> bool:
         return x0 + pad <= x <= x1 - pad and y0 + pad <= y <= y1 - pad
-
-    segments = []
-    if cfg.segments and (site.root / cfg.segments).exists():
-        segments = json.loads((site.root / cfg.segments).read_text())
-    road_lines = [(s["coords"], ROAD_WIDTH_M[s["class"]]) for s in segments
-                  if s.get("class") in ROAD_WIDTH_M]
-    walk_lines = []
-    if graph is not None:
-        walk_lines = [([graph.xy(u), graph.xy(v)], 3.0) for u, v, d in graph.g.edges(data=True)
-                      if d.get("zone") != "roadside" and d.get("tier") != "candidate"]
-        if not segments:
-            road_lines = [([graph.xy(u), graph.xy(v)], 6.0)
-                          for u, v, d in graph.g.edges(data=True) if d.get("zone") == "roadside"]
-
-    progress("ground surfaces")
-    surface = classify_surface(rasters, cfg, road_lines, walk_lines)
-    scene = Scene(origin=((x0 + x1) / 2, (y0 + y1) / 2, float(np.nanmin(rasters.dtm))))
-    scene.meta = {"site": site.name, "crs": site.crs, "bbox": [float(v) for v in bbox],
-                  "lidar": has_lidar}
-    ground_report = {}
-    covered = None
-    if cfg.landcover and (site.root / cfg.landcover["file"]).exists():
-        progress("ground detail: surfaces, curbs, stairs, walls")
-        from .ground import add_landcover, add_painted_lines, coarse_grid
-
-        features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
-        grid, covered = coarse_grid(features, rasters)
-        surface = np.where(covered, grid, surface).astype(np.uint8)
-        ground_report = add_landcover(scene, features, rasters, bbox)
-        lines_cfg = cfg.ground_lines or {}
-        stall_lines = []
-        if lines_cfg and (site.root / lines_cfg["file"]).exists():
-            stall_lines = load_ground_lines(site.root / lines_cfg["file"], lines_cfg)
-            if not lite:
-                ground_report["painted_line_segments"] = add_painted_lines(
-                    scene, stall_lines, rasters, bbox)
-        from .ground import add_accessible_stalls, add_crosswalk_paint, add_fences
-
-        stalls = site.root / cfg.accessible_stalls if cfg.accessible_stalls else None
-        if stalls and stalls.exists():
-            pts = [tuple(f["geometry"]["coordinates"][:2])
-                   for f in json.loads(stalls.read_text()).get("features", [])
-                   if (f.get("geometry") or {}).get("type") == "Point"]
-            ground_report["accessible_stalls"] = add_accessible_stalls(
-                scene, pts, rasters, bbox, stall_lines)
-        marked = site.root / cfg.crossings if cfg.crossings else None
-        if marked and marked.exists():
-            found = json.loads(marked.read_text())
-            ground_report["crosswalk_paint"] = add_crosswalk_paint(
-                scene, [(c["a"], c["b"]) for c in found
-                        if c["tier"] in ("marked", "confirmed")], rasters, bbox)
-        fence_cfg = cfg.fences or {}
-        if fence_cfg and (site.root / fence_cfg["file"]).exists():
-            ground_report["fence_segments"] = add_fences(
-                scene, load_fences(site.root / fence_cfg["file"], fence_cfg), rasters, bbox)
-    # Lidar-classified terrain fills whatever the land-cover layer does not cover.
-    add_terrain(scene, rasters, surface, cfg.terrain_res, skip=covered)
 
     # The planned route decides which buildings matter most.
     route_line, route_xy, route_blocked = None, [], False
@@ -449,6 +397,88 @@ def build_world(site, scenario=None, route_key: str | None = None,
                 route_line = LineString(route_xy)
         except Exception as e:   # a missing route must not block building the world
             progress(f"no route ({e}); every building is treated as background")
+
+    focus = None
+    if focus_m and route_line is not None:
+        import shapely
+
+        focus = route_line.buffer(focus_m)
+        shapely.prepare(focus)
+        inside_box = inside
+
+        def inside(x, y, pad=0.0) -> bool:          # noqa: F811 - the box, narrowed to the focus
+            return inside_box(x, y, pad) and bool(shapely.contains_xy(focus, x, y))
+
+    segments = []
+    if cfg.segments and (site.root / cfg.segments).exists():
+        segments = json.loads((site.root / cfg.segments).read_text())
+    road_lines = [(s["coords"], ROAD_WIDTH_M[s["class"]]) for s in segments
+                  if s.get("class") in ROAD_WIDTH_M]
+    walk_lines = []
+    if graph is not None:
+        walk_lines = [([graph.xy(u), graph.xy(v)], 3.0) for u, v, d in graph.g.edges(data=True)
+                      if d.get("zone") != "roadside" and d.get("tier") != "candidate"]
+        if not segments:
+            road_lines = [([graph.xy(u), graph.xy(v)], 6.0)
+                          for u, v, d in graph.g.edges(data=True) if d.get("zone") == "roadside"]
+
+    progress("ground surfaces")
+    surface = classify_surface(rasters, cfg, road_lines, walk_lines)
+    scene = Scene(origin=((x0 + x1) / 2, (y0 + y1) / 2, float(np.nanmin(rasters.dtm))))
+    scene.meta = {"site": site.name, "crs": site.crs, "bbox": [float(v) for v in bbox],
+                  "lidar": has_lidar}
+    ground_report = {}
+    covered = None
+    planter_polys: list = []
+    if cfg.landcover and (site.root / cfg.landcover["file"]).exists():
+        progress("ground detail: surfaces, curbs, stairs, walls")
+        from .ground import add_landcover, add_painted_lines, coarse_grid
+
+        features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+        if focus is not None:
+            features = [(g.intersection(focus), c, p) for g, c, p in features
+                        if g.intersects(focus)]
+            features = [f for f in features if not f[0].is_empty]
+        planter_polys = [g for g, c, _ in features if c == "planter"]
+        grid, covered = coarse_grid(features, rasters)
+        surface = np.where(covered, grid, surface).astype(np.uint8)
+        ground_report = add_landcover(scene, features, rasters, bbox)
+        lines_cfg = cfg.ground_lines or {}
+        stall_lines = []
+        if lines_cfg and (site.root / lines_cfg["file"]).exists():
+            stall_lines = load_ground_lines(site.root / lines_cfg["file"], lines_cfg)
+            if not lite:
+                ground_report["painted_line_segments"] = add_painted_lines(
+                    scene, stall_lines, rasters, bbox)
+        from .ground import add_accessible_stalls, add_crosswalk_paint, add_fences
+
+        stalls = site.root / cfg.accessible_stalls if cfg.accessible_stalls else None
+        if stalls and stalls.exists():
+            pts = [tuple(f["geometry"]["coordinates"][:2])
+                   for f in json.loads(stalls.read_text()).get("features", [])
+                   if (f.get("geometry") or {}).get("type") == "Point"]
+            ground_report["accessible_stalls"] = add_accessible_stalls(
+                scene, pts, rasters, bbox, stall_lines)
+        marked = site.root / cfg.crossings if cfg.crossings else None
+        if marked and marked.exists():
+            found = json.loads(marked.read_text())
+            ground_report["crosswalk_paint"] = add_crosswalk_paint(
+                scene, [(c["a"], c["b"]) for c in found
+                        if c["tier"] in ("marked", "confirmed")], rasters, bbox)
+        fence_cfg = cfg.fences or {}
+        if fence_cfg and (site.root / fence_cfg["file"]).exists():
+            ground_report["fence_segments"] = add_fences(
+                scene, load_fences(site.root / fence_cfg["file"], fence_cfg), rasters, bbox)
+    if focus is not None:                      # no terrain outside the focus either
+        import shapely
+
+        rows, cols = rasters.shape
+        gx, gy = np.meshgrid(rasters.x0 + (np.arange(cols) + 0.5) * rasters.res,
+                             rasters.y0 + (np.arange(rows) + 0.5) * rasters.res)
+        outside = ~shapely.contains_xy(focus, gx, gy)
+        covered = outside if covered is None else (covered | outside)
+    # Lidar-classified terrain fills whatever the land-cover layer does not cover.
+    add_terrain(scene, rasters, surface, cfg.terrain_res, skip=covered)
 
     progress("buildings")
     styles = load_styles(site.root / cfg.styles)
@@ -541,7 +571,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
     # Buildings the campus map doesn't cover: official city footprints first, then
     # OpenStreetMap ones the city layer lacks. Their shapes are measured like the rest.
     from shapely import STRtree
-    from shapely.geometry import Polygon
+    from shapely.geometry import Point, Polygon
     from shapely.geometry import shape as to_shape
 
     extra: list[tuple[object, str, float]] = []
@@ -580,6 +610,9 @@ def build_world(site, scenario=None, route_key: str | None = None,
 
     progress("trees and props")
     n_trees = 0
+    veg_cache: dict = {}
+    tree_shapes: dict = {}
+    n_plants = 0
     tree_size = {"surveyed": 0, "lidar": 0, "default": 0}   # where each tree's height came from
     for t in model.trees:
         x, y = t.xy
@@ -595,10 +628,36 @@ def build_world(site, scenario=None, route_key: str | None = None,
             height = float(np.nanmax(top) - z) if np.isfinite(top).any() else None
         height = float(min(max(height or 6.0, 1.0), 40.0))
         radius = float(min(max(p.get("canopy_radius_m") or height * 0.3, 0.6), 14.0))
-        add_tree(scene, x, y, z, height, radius, float(p.get("trunk_diameter_m") or 0.3),
-                 str(p.get("family") or ""), str(p.get("habit") or ""),
-                 _seed(round(x, 1), round(y, 1)), max_detail=1 if lite else 2)
+        near = route_line is None or route_line.distance(Point(x, y)) <= 110
+        arch = place_tree(scene, veg_cache, x, y, z, height, radius,
+                          float(p.get("trunk_diameter_m") or 0.3), p.get("species"),
+                          str(p.get("family") or ""), str(p.get("habit") or ""),
+                          _seed(round(x, 1), round(y, 1)), lod=0 if near else 1)
+        tree_shapes[arch] = tree_shapes.get(arch, 0) + 1
         n_trees += 1
+
+    # Ground cover in the surveyed planter beds near the route: ti plants, ferns, grass tufts and
+    # low bushes, the mix UH's photos show at the base of Holmes Hall, Campus Center and
+    # Architecture. Positions are the planter polygons; the mix is read off those photos.
+    if planter_polys and route_line is not None:
+        import shapely
+
+        prng = np.random.default_rng(11)
+        for part in (q for g in planter_polys for q in getattr(g, "geoms", [g])):
+            d_route = route_line.distance(part)
+            if part.geom_type != "Polygon" or d_route > 100 or part.area < 1.0:
+                continue
+            want = int(min(part.area * (0.9 if d_route < 50 else 0.35), 70))
+            xs0, ys0, xs1, ys1 = part.bounds
+            px = prng.uniform(xs0, xs1, want * 3)
+            py = prng.uniform(ys0, ys1, want * 3)
+            keep = shapely.contains_xy(part.buffer(-0.2), px, py)
+            for x, y in list(zip(px[keep], py[keep], strict=True))[:want]:
+                kind = prng.choice(["ti", "fern", "grass", "bush"], p=[0.35, 0.3, 0.25, 0.1])
+                place_ground_cover(scene, veg_cache, str(kind), float(x), float(y),
+                                   float(rasters.ground_z(x, y)), _seed(round(x, 1), round(y, 1)),
+                                   lod=0 if d_route < 45 else 1)
+                n_plants += 1
 
     from .assets import load_assets
     from .campus_model import inside_any_building
@@ -657,7 +716,9 @@ def build_world(site, scenario=None, route_key: str | None = None,
             r, c = rasters.cell(x, y)
             return SURFACE_NAMES[int(surface[r, c])]
 
-        agent_counts = populate(agents_scene, site, graph, model, rasters.ground_z, bbox, scenario,
+        agent_box = tuple(focus.bounds) if focus is not None else bbox
+        agent_counts = populate(agents_scene, site, graph, model, rasters.ground_z, agent_box,
+                                scenario,
                                 road_segments=segments, surface=surface_at, library=library)
 
     share = {name: round(float((surface == code).mean()), 3)
@@ -668,6 +729,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "elevation_m": [round(float(np.nanmin(rasters.dtm)), 1),
                         round(float(np.nanmax(rasters.dtm)), 1)],
         "surface_share": share, "background_buildings": n_background, "trees": n_trees,
+        "tree_shapes": tree_shapes, "ground_cover": n_plants,
         "tree_height_source": tree_size, "ground": ground_report, "models": n_models,
         "model_sources": {name: {"cls": a.cls, **a.meta} for name, a in {
             **scene.assets, **(agents_scene.assets if agents_scene else {})}.items()},
@@ -822,6 +884,12 @@ def part_arrays(scene: Scene, key, tiles: dict, textured: bool = True):
     return tri.reshape(-1, 3), np.arange(len(tri) * 3).reshape(-1, 3), uv
 
 
+def _glb_scale(scale) -> list:
+    """Node scale in glTF's Y-up axes from a world scale (one number or (sx, sy, sz))."""
+    sx, sy, sz = (scale, scale, scale) if np.isscalar(scale) else scale
+    return [float(sx), float(sz), float(sy)]
+
+
 def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
                instances: bool = True) -> None:
     """Binary glTF with embedded textures. glTF is Y-up, so (x, y, z) is written as
@@ -899,6 +967,7 @@ def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
     # Shared models: each written once, then one node per placement.
     ox, oy, oz = scene.origin
     asset_mesh: dict[str, int] = {}
+    shared_tex: dict[str, int] = {}
     for inst in (scene.instances if instances else []):
         asset = scene.assets[inst.asset]
         if inst.asset not in asset_mesh:
@@ -908,14 +977,21 @@ def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
                 attributes = {"POSITION": accessor(yup, "VEC3", 5126, 34962, bounds=True)}
                 pbr = {"baseColorFactor": [*p.color, 1.0], "roughnessFactor": 0.85,
                        "metallicFactor": 0.0}
+                extra = {}
                 if p.uv is not None and p.image is not None:
                     uv = np.c_[p.uv[:, 0], 1.0 - p.uv[:, 1]].astype(np.float32)
                     attributes["TEXCOORD_0"] = accessor(uv, "VEC2", 5126, 34962)
-                    images.append({"bufferView": view(p.image), "mimeType": "image/jpeg",
-                                   "name": f"{asset.name}_{i}"})
-                    textures.append({"source": len(images) - 1, "sampler": 0})
-                    pbr["baseColorTexture"] = {"index": len(textures) - 1}
-                materials.append({"name": f"{asset.name}_{i}", "pbrMetallicRoughness": pbr})
+                    key = hashlib.sha1(p.image).hexdigest()      # one copy of a shared texture
+                    if key not in shared_tex:
+                        images.append({"bufferView": view(p.image), "name": key[:8],
+                                       "mimeType": "image/png" if p.alpha else "image/jpeg"})
+                        textures.append({"source": len(images) - 1, "sampler": 0})
+                        shared_tex[key] = len(textures) - 1
+                    pbr["baseColorTexture"] = {"index": shared_tex[key]}
+                    if p.alpha:
+                        extra = {"alphaMode": "MASK", "alphaCutoff": 0.5, "doubleSided": True}
+                materials.append({"name": f"{asset.name}_{i}", "pbrMetallicRoughness": pbr,
+                                  **extra})
                 prims.append({"attributes": attributes, "material": len(materials) - 1,
                               "indices": accessor(p.faces.astype(np.uint32).ravel(), "SCALAR",
                                                   5125, 34963)})
@@ -926,7 +1002,7 @@ def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
                       "mesh": asset_mesh[inst.asset],
                       "translation": [inst.x - ox, inst.z - oz, -(inst.y - oy)],
                       "rotation": [0.0, math.sin(half), 0.0, math.cos(half)],
-                      "scale": [inst.scale] * 3})
+                      "scale": _glb_scale(inst.scale)})
 
     doc = {"asset": {"version": "2.0", "generator": "campus-rover"}, "scene": 0,
            "scenes": [{"nodes": list(range(len(nodes)))}], "nodes": nodes, "meshes": meshes,
@@ -1048,6 +1124,7 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
             m.CreateDisplayColorPrimvar().Set(Vt.Vec3fArray([Gf.Vec3f(*p.color)]))
             m.CreateExtentAttr(Vt.Vec3fArray([Gf.Vec3f(*pts.min(axis=0).tolist()),
                                               Gf.Vec3f(*pts.max(axis=0).tolist())]))
+            UsdSemantics.LabelsAPI.Apply(m.GetPrim(), "class").CreateLabelsAttr().Set([asset.cls])
             mat = UsdShade.Material.Define(stage, f"{proto}/Looks/part_{i}")
             shader = UsdShade.Shader.Define(stage, f"{proto}/Looks/part_{i}/Shader")
             shader.CreateIdAttr("UsdPreviewSurface")
@@ -1055,7 +1132,8 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
             shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.85)
             if p.uv is not None and p.image is not None:
                 (path.parent / "textures").mkdir(exist_ok=True)
-                (path.parent / "textures" / f"{name}_{i}.jpg").write_bytes(p.image)
+                tex_name = f"{hashlib.sha1(p.image).hexdigest()[:12]}.{'png' if p.alpha else 'jpg'}"
+                (path.parent / "textures" / tex_name).write_bytes(p.image)
                 st = UsdGeom.PrimvarsAPI(m.GetPrim()).CreatePrimvar(
                     "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex)
                 st.Set(Vt.Vec2fArray.FromNumpy(p.uv.astype(np.float32)))
@@ -1064,12 +1142,16 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
                 reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
                 tex = UsdShade.Shader.Define(stage, f"{proto}/Looks/part_{i}/Texture")
                 tex.CreateIdAttr("UsdUVTexture")
-                tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(
-                    f"./textures/{name}_{i}.jpg")
+                tex.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(f"./textures/{tex_name}")
                 tex.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(
                     reader.ConnectableAPI(), "result")
                 tex.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
                 diffuse.ConnectToSource(tex.ConnectableAPI(), "rgb")
+                if p.alpha:                      # leaves: the texture's alpha cuts the shape out
+                    tex.CreateOutput("a", Sdf.ValueTypeNames.Float)
+                    shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).ConnectToSource(
+                        tex.ConnectableAPI(), "a")
+                    shader.CreateInput("opacityThreshold", Sdf.ValueTypeNames.Float).Set(0.5)
             else:
                 diffuse.Set(Gf.Vec3f(*p.color))
             mat.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(), "surface")
@@ -1090,7 +1172,8 @@ def export_usd(scene: Scene, path: Path, collision: bool = True) -> None:
         UsdGeom.Imageable(prim).MakeVisible()
         xf.AddTranslateOp().Set(Gf.Vec3d(inst.x - ox, inst.y - oy, inst.z - oz))
         xf.AddRotateZOp().Set(math.degrees(inst.yaw))
-        xf.AddScaleOp().Set(Gf.Vec3f(inst.scale, inst.scale, inst.scale))
+        sx, sy, sz = (inst.scale,) * 3 if np.isscalar(inst.scale) else inst.scale
+        xf.AddScaleOp().Set(Gf.Vec3f(float(sx), float(sy), float(sz)))
         prim.SetInstanceable(True)
         UsdSemantics.LabelsAPI.Apply(prim, "class").CreateLabelsAttr().Set([asset.cls])
         _tag_traversability(prim, asset.cls, Sdf)

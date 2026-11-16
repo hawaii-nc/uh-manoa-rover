@@ -604,7 +604,7 @@ def test_instances_share_one_mesh_in_glb_and_one_prototype_in_usd(tmp_path):
     assert inst.IsInstanceable() and inst.HasAuthoredReferences()
     assert UsdSemantics.LabelsAPI(inst, "class").GetLabelsAttr().Get() == ["bench"]
     assert stage.GetPrimAtPath("/World/Prototypes/bench/part_0").IsValid()
-    assert (tmp_path / "textures" / "bench_0.jpg").exists()
+    assert list((tmp_path / "textures").glob("*.jpg"))      # shared textures are written once
 
 
 def test_pole_height_comes_from_lidar_or_is_refused():

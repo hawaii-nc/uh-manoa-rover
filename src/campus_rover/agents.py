@@ -84,31 +84,114 @@ def wheel(mesh: Mesh, x, y, z, yaw, radius, width=0.08, segments=10) -> None:
     mesh.add(pts, faces)
 
 
+HAIR = [(0.06, 0.05, 0.05), (0.12, 0.08, 0.06), (0.25, 0.16, 0.10), (0.45, 0.32, 0.18),
+        (0.62, 0.60, 0.58), (0.78, 0.66, 0.38)]
+SHOES = [(0.08, 0.08, 0.09), (0.88, 0.88, 0.86), (0.30, 0.22, 0.16), (0.55, 0.12, 0.10),
+         (0.12, 0.30, 0.50)]
+# Rubber slippers ("slippahs") are the usual footwear in Hawaiʻi: a flat sole, skin above.
+
+
+def _limb(mesh: Mesh, p0, p1, r0: float, r1: float, seg: int = 6, stretch: float = 1.0,
+          yaw: float = 0.0) -> None:
+    """A tapered tube from p0 to p1 (world x, y, z), optionally wider across the body."""
+    a, b = np.asarray(p0, float), np.asarray(p1, float)
+    axis = b - a
+    n = np.linalg.norm(axis)
+    if n < 1e-6:
+        return
+    axis /= n
+    ref = np.array([0.0, 0.0, 1.0]) if abs(axis[2]) < 0.95 else np.array([1.0, 0.0, 0.0])
+    u = np.cross(ref, axis)
+    u /= np.linalg.norm(u)
+    v = np.cross(axis, u)
+    ang = np.linspace(0, 2 * math.pi, seg, endpoint=False)
+    side = np.array([-math.sin(yaw), math.cos(yaw), 0.0])      # across the shoulders
+    verts = []
+    for p, r in ((a, r0), (b, r1)):
+        for t in ang:
+            off = (u * math.cos(t) + v * math.sin(t)) * r
+            if stretch != 1.0:
+                off = off + side * np.dot(off, side) * (stretch - 1.0)
+            verts.append(p + off)
+    i = np.arange(seg)
+    j = (i + 1) % seg
+    faces = np.r_[np.c_[i, j, j + seg], np.c_[i, j + seg, i + seg]]
+    verts.append(b)
+    faces = np.r_[faces, np.c_[i + seg, j + seg, np.full(seg, 2 * seg)]]       # close the top
+    mesh.add(np.asarray(verts), faces)
+
+
 def add_person(scene: Scene, group: str, x, y, z, yaw, rng, seated: float = 0.0) -> None:
-    """A standing or walking person. `seated` lowers the hips (for riders)."""
-    scale = float(rng.uniform(0.88, 1.1))
+    """A standing, walking or seated person: head with hair, neck, torso, arms with elbows, legs
+    with knees, shoes, often a backpack. About 300 triangles, so a crowd stays light.
+    `seated` lowers the hips (for riders)."""
+    scale = float(rng.uniform(0.9, 1.08))
     skin = _mat(scene, "skin", SKIN[rng.integers(len(SKIN))])
-    top = _mat(scene, "cloth", CLOTHES[rng.integers(len(CLOTHES))])
-    legs = _mat(scene, "cloth", PANTS[rng.integers(len(PANTS))])
-    body = scene.mesh(group, "person", top)
-    lower = scene.mesh(group, "person", legs)
-    head = scene.mesh(group, "person", skin)
-    leg_h = (0.86 - seated) * scale
-    stride = 0.0 if seated else float(rng.uniform(-0.18, 0.18))
-    for side, phase in ((0.1, stride), (-0.1, -stride)):
-        cx, cy = _local(x, y, yaw, phase, side * scale)
-        lower.box((cx, cy, z), (0.16 * scale, 0.15 * scale, leg_h), yaw)
-    torso_h = 0.6 * scale
-    body.box((x, y, z + leg_h), (0.24 * scale, 0.42 * scale, torso_h), yaw)
-    for side in (0.26, -0.26):
-        cx, cy = _local(x, y, yaw, -stride * 0.6 * math.copysign(1, side), side * scale)
-        body.box((cx, cy, z + leg_h + 0.05), (0.11 * scale, 0.1 * scale, 0.55 * scale), yaw)
-    head.blob((x, y, z + leg_h + torso_h + 0.13 * scale),
-              (0.105 * scale, 0.1 * scale, 0.125 * scale), seed=0, wobble=0.0)
-    if rng.random() < 0.45:      # backpack: half the students carry one
-        bx, by = _local(x, y, yaw, -0.19 * scale, 0.0)
-        scene.mesh(group, "person", _mat(scene, "cloth", PANTS[rng.integers(len(PANTS))])).box(
-            (bx, by, z + leg_h + 0.1), (0.16 * scale, 0.3 * scale, 0.42 * scale), yaw)
+    shirt_rgb = CLOTHES[rng.integers(len(CLOTHES))]
+    shirt = _mat(scene, "cloth", shirt_rgb)
+    pants_rgb = PANTS[rng.integers(len(PANTS))]
+    shorts = rng.random() < 0.55                       # warm island: shorts are common
+    pants = _mat(scene, "cloth", pants_rgb)
+    hair = _mat(scene, "hair", HAIR[rng.integers(len(HAIR))], roughness=0.9)
+    shoes = _mat(scene, "shoe", SHOES[rng.integers(len(SHOES))])
+    m_skin, m_shirt = scene.mesh(group, "person", skin), scene.mesh(group, "person", shirt)
+    m_pants, m_hair = scene.mesh(group, "person", pants), scene.mesh(group, "person", hair)
+    m_shoe = scene.mesh(group, "person", shoes)
+
+    def at(f, s, h):                                    # forward, left, height in the body frame
+        px, py = _local(x, y, yaw, f * scale, s * scale)
+        return (px, py, z + h * scale)
+
+    walking = not seated and rng.random() < 0.7
+    swing = float(rng.uniform(-1, 1)) * 0.38 if walking else 0.0          # stride, radians
+    hip_h = 0.93 - seated
+    if seated:
+        thigh = 0.42
+        for side in (0.09, -0.09):                      # thighs forward, shins down
+            knee = at(thigh, side, hip_h + 0.0)
+            ankle = at(thigh + 0.04, side, hip_h - 0.43)
+            _limb(m_pants, at(0, side, hip_h), knee, 0.075, 0.056, 6, 1.0, yaw)
+            _limb(m_skin if shorts else m_pants, knee, ankle, 0.054, 0.04, 6, 1.0, yaw)
+            _limb(m_shoe, at(thigh + 0.0, side, hip_h - 0.46), at(thigh + 0.17, side, hip_h - 0.46),
+                  0.045, 0.04, 5, 1.0, yaw)
+    else:
+        for side, sg in ((0.09, 1), (-0.09, -1)):
+            a = swing * sg
+            knee = at(math.sin(a) * 0.43, side, hip_h - math.cos(a) * 0.43)
+            back = max(-a, 0) * 0.5                       # the trailing knee bends
+            ankle = at(math.sin(a) * 0.43 - math.sin(a - back) * 0.42, side,
+                       hip_h - math.cos(a) * 0.43 - math.cos(a - back) * 0.42)
+            _limb(m_pants, at(0, side, hip_h), knee, 0.078, 0.057, 6, 1.0, yaw)
+            _limb(m_skin if shorts else m_pants, knee, ankle, 0.054, 0.039, 6, 1.0, yaw)
+            _limb(m_shoe, (ankle[0], ankle[1], ankle[2] + 0.03 * scale),
+                  at(math.sin(a) * 0.43 - math.sin(a - back) * 0.42 + 0.17, side,
+                     0.03 + max(0, 0.0)), 0.05, 0.042, 5, 1.0, yaw)
+    shoulder_h = hip_h + 0.56
+    _limb(m_shirt, at(0, 0, hip_h), at(0, 0, shoulder_h), 0.145, 0.165, 8, 1.35, yaw)    # torso
+    _limb(m_pants, at(0, 0, hip_h - 0.06), at(0, 0, hip_h + 0.1), 0.15, 0.15, 8, 1.3, yaw)  # hips
+    for side, sg in ((0.2, 1), (-0.2, -1)):
+        a = -swing * sg * 0.9                              # arms swing against the legs
+        elbow = at(math.sin(a) * 0.29, side, shoulder_h - 0.02 - math.cos(a) * 0.29)
+        wrist = at(math.sin(a) * 0.29 + math.sin(a + 0.25 + max(a, 0) * 0.5) * 0.27, side,
+                   shoulder_h - 0.02 - math.cos(a) * 0.29
+                   - math.cos(a + 0.25 + max(a, 0) * 0.5) * 0.27)
+        _limb(m_shirt, at(0, side, shoulder_h - 0.02), elbow, 0.05, 0.043, 6, 1.0, yaw)
+        _limb(m_skin, elbow, wrist, 0.04, 0.032, 6, 1.0, yaw)
+        m_skin.blob(wrist, (0.035 * scale,) * 3, seed=1, detail=0, wobble=0.0)
+    _limb(m_skin, at(0, 0, shoulder_h), at(0.01, 0, shoulder_h + 0.09), 0.05, 0.045, 6, 1.0, yaw)
+    head = at(0.015, 0, shoulder_h + 0.2)
+    m_skin.blob(head, (0.095 * scale, 0.082 * scale, 0.115 * scale), seed=3, detail=1, wobble=0.0)
+    cap = rng.random() < 0.18
+    hr = at(0.0, 0, shoulder_h + 0.235)
+    m_hair.blob(hr, (0.1 * scale, 0.088 * scale, 0.1 * scale), seed=5, detail=1, wobble=0.0)
+    if cap:
+        m_shirt.blob(at(0.03, 0, shoulder_h + 0.255), (0.115 * scale, 0.095 * scale, 0.05 * scale),
+                     seed=7, detail=0, wobble=0.0)
+    if rng.random() < 0.5:      # backpack: half the students carry one
+        pack = _mat(scene, "cloth", PANTS[rng.integers(len(PANTS))])
+        bx, by = _local(x, y, yaw, -0.17 * scale, 0.0)
+        scene.mesh(group, "person", pack).box(
+            (bx, by, z + (hip_h + 0.1) * scale), (0.15 * scale, 0.3 * scale, 0.42 * scale), yaw)
 
 
 def add_bicycle(scene: Scene, group: str, x, y, z, yaw, rng, rider: bool = True) -> None:

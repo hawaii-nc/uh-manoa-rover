@@ -41,7 +41,8 @@ class Primitive:
     faces: np.ndarray                 # (m, 3)
     uv: np.ndarray | None             # (n, 2), origin bottom-left
     color: tuple[float, float, float]
-    image: bytes | None = None        # JPEG
+    image: bytes | None = None        # JPEG, or PNG when `alpha`
+    alpha: bool = False               # the image's alpha channel cuts the shape out (leaves)
 
 
 @dataclass
@@ -67,6 +68,7 @@ class Asset:
             arrays[f"v{i}"] = p.verts.astype(np.float32)
             arrays[f"f{i}"] = p.faces.astype(np.int32)
             arrays[f"c{i}"] = np.asarray(p.color, dtype=np.float32)
+            arrays[f"a{i}"] = np.asarray(p.alpha)
             if p.uv is not None:
                 arrays[f"uv{i}"] = p.uv.astype(np.float32)
             if p.image is not None:
@@ -88,7 +90,8 @@ class Asset:
                 data[f"v{i}"].astype(float), data[f"f{i}"].astype(np.int64),
                 data[f"uv{i}"].astype(float) if f"uv{i}" in data else None,
                 tuple(float(v) for v in data[f"c{i}"]),
-                data[f"img{i}"].tobytes() if f"img{i}" in data else None))
+                data[f"img{i}"].tobytes() if f"img{i}" in data else None,
+                bool(data[f"a{i}"]) if f"a{i}" in data else False))
         return cls(name, meta["cls"], prims, {k: v for k, v in meta.items()
                                               if k not in ("name", "cls", "prims")})
 
@@ -101,7 +104,7 @@ class Instance:
     y: float
     z: float
     yaw: float = 0.0
-    scale: float = 1.0
+    scale: float | tuple = 1.0       # one number, or (sx, sy, sz) for a model stretched to fit
 
 
 def of_class(library: dict, cls: str) -> list:
