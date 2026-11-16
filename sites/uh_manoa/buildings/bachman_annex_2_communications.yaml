@@ -12,7 +12,8 @@ window_ratio: 0.3
 shading: none
 ground_floor: solid
 confidence: medium
-notes: '1926 wooden annex: grey board walls, small windows, ramp.'
+notes: '1926 wooden annex: grey board walls, small windows, ramp. Floor plans show 1 floor.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1024C_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1024C.pdf

@@ -12,7 +12,8 @@ window_ratio: 0.3
 shading: none
 ground_floor: solid
 confidence: medium
-notes: Tan raised wooden building with a stair.
+notes: Tan raised wooden building with a stair. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1038D_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1038D.pdf

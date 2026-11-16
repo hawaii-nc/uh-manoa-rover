@@ -12,7 +12,9 @@ window_ratio: 0.5
 shading: none
 ground_floor: solid
 confidence: high
-notes: 1938. Tan stucco, dark window frames, dark brown hip roof, upstairs balcony.
+notes: 1938. Tan stucco, dark window frames, dark brown hip roof, upstairs balcony. Floor plans show 2
+  floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1056_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1056.pdf

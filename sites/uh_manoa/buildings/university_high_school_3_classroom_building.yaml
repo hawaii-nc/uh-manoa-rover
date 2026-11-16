@@ -12,7 +12,8 @@ window_ratio: 0.3
 shading: none
 ground_floor: solid
 confidence: medium
-notes: 1957. Yellow-cream two-storey classroom block under a brown roof.
+notes: 1957. Yellow-cream two-storey classroom block under a brown roof. Floor plans show 2 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1151_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1151.pdf

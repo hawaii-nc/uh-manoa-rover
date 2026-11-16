@@ -22,15 +22,33 @@ DEFAULT_ROOF = "#8c8c88"
 MIN_FACADE_M = 2.4      # shorter wall pieces stay blank
 PARAPET_M = 0.45
 FOUNDATION_M = 2.5      # walls reach below the base so slopes never show a gap
+TYPICAL_FLOOR_M = 3.9
 
 
 def floor_height(massing: Massing, style: Style) -> tuple[int, float]:
-    """(number of floors, height of one floor) for the building's main roof level."""
+    """(number of floors, height of one floor).
+
+    Without a floor count, the main roof level is divided into floors of about
+    3.9 m. With a count from a floor plan or photo, the count belongs to the
+    whole building, so it is matched to the roof level it explains best: a
+    7-floor tower beside a 4-floor wing gives 4 m floors, not 2 m ones."""
+    levels = [b.height for b in massing.blocks] or [massing.height]
     main = max(massing.blocks, key=lambda b: b.polygon.area).height if massing.blocks \
         else massing.height
-    main = massing.eave if massing.pitched else main
-    floors = style.floors or max(1, round(main / 3.9))
-    return floors, max(main / floors, 2.6)
+    if massing.pitched:
+        levels, main = [massing.eave], massing.eave
+    if not style.floors:
+        floors = max(1, round(main / TYPICAL_FLOOR_M))
+        return floors, max(main / floors, 2.6)
+    total = sum(b.polygon.area for b in massing.blocks) or 1.0
+    big = [b.height for b in massing.blocks if b.polygon.area >= 0.05 * total] or levels
+    if massing.pitched:
+        big = levels
+    best = min(big, key=lambda h: abs(h / style.floors - TYPICAL_FLOOR_M))
+    if best / style.floors < 2.6:        # this footprint is only part of the building
+        floors = max(1, round(best / TYPICAL_FLOOR_M))
+        return floors, max(best / floors, 2.6)
+    return style.floors, best / style.floors
 
 
 def generate_building(scene: Scene, group: str, massing: Massing, style: Style,

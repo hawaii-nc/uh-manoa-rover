@@ -12,7 +12,8 @@ window_ratio: 0.35
 shading: none
 ground_floor: solid
 confidence: medium
-notes: 1931. Cream single storey under a brown shingle roof.
+notes: 1931. Cream single storey under a brown shingle roof. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1037_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1037.pdf

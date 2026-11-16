@@ -12,7 +12,8 @@ window_ratio: 0.8
 shading: eyebrows
 ground_floor: storefront
 confidence: medium
-notes: Grey panels and blue glass with horizontal sunshades.
+notes: Grey panels and blue glass with horizontal sunshades. Floor plans show 4 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1263_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1263.pdf

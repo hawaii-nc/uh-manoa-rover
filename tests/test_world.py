@@ -618,4 +618,61 @@ def test_listed_models_have_a_permitted_source():
     from campus_rover.assets import ASSETS
 
     for name, spec in ASSETS.items():
-        assert spec["source"] == "polyhaven" and spec["cls"], name      # CC0 only, for now
+        assert spec["source"] in ("polyhaven", "kenney") and spec["cls"], name   # CC0 only
+
+
+def test_cars_use_real_models_when_the_library_has_them(demo_world):
+    from campus_rover.agents import populate
+
+    site = load_site("demo_campus")
+    car = tiny_asset("car_sedan", "car")
+    scene = Scene()
+    counts = populate(scene, site, site.load_graph(), site.load_model(),
+                      demo_world.rasters.ground_z, demo_world.bbox,
+                      Scenario(name="t", parked_share=1.0), library={"car_sedan": car})
+    placed = [i for i in scene.instances if i.asset == "car_sedan"]
+    assert counts["car"] == len(placed) > 0
+    assert not any(cls == "car" for (_, cls, _) in scene.parts)      # no box stand-ins left
+
+
+# ---- floor counts from published floor plans ------------------------------------------
+
+
+def test_floor_plan_sheet_codes_give_the_floor_count():
+    from campus_rover.floorplans import levels_from_codes, sheet_codes
+
+    pages = ["Holmes Hall Summary 1163-S", "Basement 1163-000E", "1163-100E 100 Level East",
+             "1163-100ME Mezzanine", "1163-200W x 1163-200E", "1163-500W", "other 9999-700"]
+    codes = sheet_codes(pages, "1163")
+    assert codes == ["000E", "100E", "100ME", "200E", "200W", "500W", "S"]
+    assert levels_from_codes(codes) == {"floors": 3, "top_level": 5, "basement": True,
+                                        "mezzanine": True}
+    assert levels_from_codes(["100", "200", "1300"])["top_level"] == 13
+    assert levels_from_codes(["S", "ROOF"])["floors"] == 0
+
+
+def test_plan_floor_count_is_matched_to_the_roof_level_it_explains():
+    from campus_rover.buildgen import floor_height
+    from campus_rover.massing import Block, Massing
+
+    # A 7-floor tower (28 m) beside a larger 4-floor wing (16 m): floors are 4 m, not 2.3 m.
+    tower_and_wing = Massing(0.0, 28.0, [Block(box(0, 0, 40, 30), 16.0),
+                                         Block(box(40, 0, 60, 30), 28.0)])
+    assert floor_height(tower_and_wing, Style(id="k", floors=7)) == (7, pytest.approx(4.0))
+    # A penthouse must not stretch the floors: 5 floors belong to the 20 m main roof.
+    with_penthouse = Massing(0.0, 25.6, [Block(box(0, 0, 60, 40), 20.3),
+                                         Block(box(0, 0, 20, 15), 25.6)])
+    assert floor_height(with_penthouse, Style(id="h", floors=5))[1] == pytest.approx(4.06)
+    # A small 4 m annex of a 4-floor building keeps one floor.
+    annex = Massing(0.0, 4.1, [Block(box(0, 0, 10, 10), 4.1)])
+    assert floor_height(annex, Style(id="m", floors=4))[0] == 1
+    assert floor_height(annex, Style(id="n"))[0] == 1
+
+
+def test_uh_sheets_cite_a_floor_plan_where_one_exists():
+    site = load_site("uh_manoa")
+    styles = load_styles(site.root / "buildings")
+    from_plans = [s for s in styles.values() if any("/planning/Public/PDF/" in u
+                                                    for u in s.sources)]
+    assert len(from_plans) >= 60 and all(s.floors for s in from_plans)
+    assert styles["holmes_hall"].floors == 5 and styles["kuykendall_hall"].floors == 7

@@ -12,7 +12,8 @@ window_ratio: 0.6
 shading: none
 ground_floor: solid
 confidence: low
-notes: Concrete with a glazed entry; the photo shows only the entrance stair.
+notes: Concrete with a glazed entry; the photo shows only the entrance stair. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1143_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1143.pdf

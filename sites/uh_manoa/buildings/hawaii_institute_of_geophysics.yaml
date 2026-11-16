@@ -1,7 +1,7 @@
 id: hawaii_institute_of_geophysics
 name: Hawai`I Institute Of Geophysics
 tier: A
-floors: 4
+floors: 6
 wall: '#cfd0cb'
 trim: '#e4e4df'
 glass: '#3c464b'
@@ -12,7 +12,9 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 1963. Light grey with open corridors and white railings on each floor.
+notes: 1963. Light grey with open corridors and white railings on each floor. Floor plans show 6 floors
+  plus basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1165_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1165.pdf

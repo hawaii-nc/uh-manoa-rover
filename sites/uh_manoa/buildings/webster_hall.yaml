@@ -1,7 +1,7 @@
 id: webster_hall
 name: Webster Hall
 tier: A
-floors: 4
+floors: 5
 wall: '#e2dcc4'
 trim: '#cdc7ae'
 glass: '#48626e'
@@ -12,7 +12,8 @@ window_ratio: 0.45
 shading: none
 ground_floor: solid
 confidence: medium
-notes: 1961. Cream classroom block with patterned screen-block panels.
+notes: 1961. Cream classroom block with patterned screen-block panels. Floor plans show 5 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1167_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1167.pdf

@@ -15,7 +15,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 |---|---|
 | Sites and config | `site.py`, `sites/<name>/site.yaml`, `layers.yaml`, `schedule.yaml` |
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
-| Map data in | `arcgis.py` (UH map layers), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
+| Map data in | `arcgis.py` (UH map layers), `floorplans.py` (floor counts from UH Planning PDFs), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
 | 3D world | `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Older flat export | `usd_export.py`, `viz.py` |

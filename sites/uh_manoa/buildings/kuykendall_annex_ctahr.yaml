@@ -12,7 +12,8 @@ window_ratio: 0.6
 shading: none
 ground_floor: solid
 confidence: medium
-notes: Brown raised wooden annex with dark window bands.
+notes: Brown raised wooden annex with dark window bands. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1125_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1125.pdf

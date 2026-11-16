@@ -1,7 +1,7 @@
 id: kuykendall_hall_b
 name: Kuykendall Hall
 tier: C
-floors: null
+floors: 7
 wall: '#c9c1a8'
 trim: '#b5ad94'
 glass: '#3d464a'
@@ -12,7 +12,8 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 'Part of Kuykendall Hall: beige concrete with open corridors and louvres.'
+notes: 'Part of Kuykendall Hall: beige concrete with open corridors and louvres. Floor plans show 7 floors.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1192_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1192.pdf

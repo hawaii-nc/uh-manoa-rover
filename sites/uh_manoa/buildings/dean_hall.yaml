@@ -1,7 +1,7 @@
 id: dean_hall
 name: Dean Hall
 tier: A
-floors: 3
+floors: 2
 wall: '#ead9a8'
 trim: '#b9824f'
 glass: '#4b4a3a'
@@ -12,7 +12,9 @@ window_ratio: 0.45
 shading: eyebrows
 ground_floor: solid
 confidence: high
-notes: 1929. Warm cream walls on a terracotta base, deep bracketed eaves.
+notes: 1929. Warm cream walls on a terracotta base, deep bracketed eaves. Floor plans show 2 floors plus
+  basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1030_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1030.pdf

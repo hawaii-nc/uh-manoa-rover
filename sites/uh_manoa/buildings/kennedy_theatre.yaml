@@ -1,7 +1,7 @@
 id: kennedy_theatre
 name: Kennedy Theatre
 tier: A
-floors: 2
+floors: 5
 wall: '#ecebe6'
 trim: '#dad9d3'
 glass: '#4a4440'
@@ -12,7 +12,9 @@ window_ratio: 0.5
 shading: none
 ground_floor: arcade
 confidence: medium
-notes: '1962 by I. M. Pei: white, tall columned portico under a wide flat roof, few windows.'
+notes: '1962 by I. M. Pei: white, tall columned portico under a wide flat roof, few windows. Floor plans
+  show 5 floors.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1183_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1183.pdf

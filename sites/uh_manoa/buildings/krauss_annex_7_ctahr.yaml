@@ -12,7 +12,8 @@ window_ratio: 0.4
 shading: none
 ground_floor: solid
 confidence: medium
-notes: '1972 raised wooden annex: cream boards, brown roof and deck.'
+notes: '1972 raised wooden annex: cream boards, brown roof and deck. Floor plans show 1 floor.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1046U_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1046U.pdf

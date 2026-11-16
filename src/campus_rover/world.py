@@ -51,6 +51,7 @@ class WorldConfig:
     landcover: dict | None = None       # surveyed ground polygons: file, field, classes
     assets: str | None = "cache/assets"  # prepared free models (campus-rover fetch-assets)
     light_poles: dict | None = None     # surveyed pole points: file, status_field, keep
+    floor_plans: str | None = None      # URL of per-building floor-plan PDFs, with {number}
     ground_lines: dict | None = None    # painted lines: file, colour_field, categories
     lidar_res: float = 0.5
     terrain_res: float = 1.0
@@ -421,6 +422,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
                                  roof_color=roof_grey(poly, rasters, roof_scale))
         buildings_report.append({
             "id": bid, "name": name, "tier": tier, "style_source": source, "campus": campus,
+            "floors_source": "plan" if any("/planning/" in u for u in style.sources) else
+            "photo" if style.floors else "height",
             "abbrev": props.get("ABBREV2") or props.get("ABBREV1"),
             "route_distance_m": None if dist is None else round(dist, 1),
             "height_m": round(massing.height, 1), "base_z": round(massing.base_z, 1),
@@ -510,13 +513,15 @@ def build_world(site, scenario=None, route_key: str | None = None,
     library = load_assets(site.root / cfg.assets if cfg.assets else None)
     n_props: dict[str, int] = {}
     n_models: dict[str, int] = {}
+    prop_models = {a.cls: a for a in library.values() if a.cls not in ("car", "street_light")}
     for prop in model.props:
         x, y = prop.xy
         if prop.cls in INDOOR_PROPS or not inside(x, y, 1.0) or inside_any_building(model, (x, y)):
             continue
         z = float(rasters.ground_z(x, y))
-        if prop.cls in library:        # a real model exists for this kind of object
-            scene.place(library[prop.cls], "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+        if prop.cls in prop_models:        # a real model exists for this kind of object
+            scene.place(prop_models[prop.cls], "props", x, y, z,
+                        (_seed(x, y) % 8) * math.pi / 4)
             n_models[prop.cls] = n_models.get(prop.cls, 0) + 1
             n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
         elif add_prop(scene, prop.cls, x, y, z, _seed(x, y)):
@@ -560,7 +565,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
             return SURFACE_NAMES[int(surface[r, c])]
 
         agent_counts = populate(agents_scene, site, graph, model, rasters.ground_z, bbox, scenario,
-                                road_segments=segments, surface=surface_at)
+                                road_segments=segments, surface=surface_at, library=library)
 
     share = {name: round(float((surface == code).mean()), 3)
              for code, name in SURFACE_NAMES.items()}
@@ -571,7 +576,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
                         round(float(np.nanmax(rasters.dtm)), 1)],
         "surface_share": share, "background_buildings": n_background, "trees": n_trees,
         "tree_height_source": tree_size, "ground": ground_report, "models": n_models,
-        "model_sources": {name: {"cls": a.cls, **a.meta} for name, a in scene.assets.items()},
+        "model_sources": {name: {"cls": a.cls, **a.meta} for name, a in {
+            **scene.assets, **(agents_scene.assets if agents_scene else {})}.items()},
         "props": n_props, "agents": agent_counts,
         "route": {"key": route_key, "length_m": round(route_line.length) if route_line else None,
                   "xy": [[round(x, 2), round(y, 2)] for x, y in route_xy]},

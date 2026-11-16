@@ -12,7 +12,8 @@ window_ratio: 0.3
 shading: none
 ground_floor: solid
 confidence: low
-notes: Cream wooden annex with a shed roof; the photographed side is blank.
+notes: Cream wooden annex with a shed roof; the photographed side is blank. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1103E_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1103E.pdf

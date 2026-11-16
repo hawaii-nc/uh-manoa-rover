@@ -12,7 +12,8 @@ window_ratio: 0.5
 shading: none
 ground_floor: solid
 confidence: medium
-notes: Grey single storey with orange louvres and railing.
+notes: Grey single storey with orange louvres and railing. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1038B_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1038B.pdf

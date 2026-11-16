@@ -12,7 +12,8 @@ window_ratio: 0.4
 shading: none
 ground_floor: solid
 confidence: high
-notes: 1939. Pale grey-cream walls under a red clay-tile hip roof.
+notes: 1939. Pale grey-cream walls under a red clay-tile hip roof. Floor plans show 2 floors plus basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1062_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1062.pdf

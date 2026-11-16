@@ -27,6 +27,12 @@ ASSETS = {
     "street_light": {"source": "polyhaven", "id": "street_lamp_01", "cls": "street_light",
                      "max_tris": 800},
 }
+# Kenney's Car Kit (CC0): low-poly, toy-proportioned cars. They face +Z and are about
+# 2.6 units long, so they are turned to face +X and enlarged to roughly car size.
+for _car in ("sedan", "hatchback-sports", "suv", "van", "truck", "delivery"):
+    ASSETS[f"car_{_car.replace('-', '_')}"] = {
+        "source": "kenney", "kit": "car-kit", "file": f"Models/GLB format/{_car}.glb",
+        "cls": "car", "scale": 1.3, "turn_deg": 90.0}
 
 
 @dataclass
@@ -98,6 +104,11 @@ class Instance:
     scale: float = 1.0
 
 
+def of_class(library: dict, cls: str) -> list:
+    """Every loaded model with that semantic class, in a stable order."""
+    return [library[name] for name in sorted(library) if library[name].cls == cls]
+
+
 def load_assets(folder: Path | None) -> dict[str, Asset]:
     out = {}
     if folder is not None and folder.is_dir():
@@ -109,7 +120,8 @@ def load_assets(folder: Path | None) -> dict[str, Asset]:
 
 
 def from_trimesh(name: str, cls: str, meshes: list, max_tris: int | None = None,
-                 texture_px: int = 512, meta: dict | None = None) -> Asset:
+                 texture_px: int = 512, meta: dict | None = None, scale: float = 1.0,
+                 turn_deg: float = 0.0) -> Asset:
     """Prepare Y-up trimesh meshes: turn Z up, stand on z = 0, shrink textures.
 
     Over `max_tris` the model is simplified and painted with its texture's
@@ -145,8 +157,12 @@ def from_trimesh(name: str, cls: str, meshes: list, max_tris: int | None = None,
             verts, faces, uv = np.asarray(slim.vertices), np.asarray(slim.faces), None
         prims.append(Primitive(verts, faces, uv, color, image))
     base = min(p.verts[:, 2].min() for p in prims)
+    c, s = np.cos(np.radians(turn_deg)), np.sin(np.radians(turn_deg))
     for p in prims:
         p.verts[:, 2] -= base
+        x, y = p.verts[:, 0].copy(), p.verts[:, 1].copy()
+        p.verts[:, 0], p.verts[:, 1] = x * c - y * s, x * s + y * c     # face +X
+        p.verts *= scale
     return Asset(name, cls, prims, meta or {})
 
 
@@ -170,9 +186,51 @@ def fetch_assets(folder: Path, force: bool = False, progress=print) -> dict:  # 
                 time.sleep(2 + 2 * attempt)
         raise RuntimeError("unreachable")
 
-    done = {}
+    def kenney_kit(slug: str) -> Path:
+        """Download one free Kenney kit the way its own page does: read the page, ask
+        for the signed link with that page as referrer, then fetch the zip."""
+        import http.cookiejar
+        import re
+        import zipfile
+
+        target = Path(tempfile.mkdtemp()) / slug
+        agent = {"User-Agent": "Mozilla/5.0 campus-rover/0.1 (student research)"}
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+        page = f"https://kenney.nl/assets/{slug}"
+        html = opener.open(urllib.request.Request(page, headers=agent), timeout=60).read()
+        html = html.decode("utf8", "ignore")
+        if "CC0" not in html:
+            raise RuntimeError(f"{page} no longer says CC0; check the licence")
+        ident = re.search(r"data-download-id=['\"]?([A-Za-z0-9_-]+)", html).group(1)
+        link = json.load(opener.open(urllib.request.Request(
+            f"https://kenney.nl/download-link/{ident}", headers={**agent, "Referer": page}),
+            timeout=60))["url"]
+        data = opener.open(urllib.request.Request(link, headers={**agent, "Referer": page}),
+                           timeout=300).read()
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            for member in z.namelist():
+                if member.startswith("Models/GLB format/"):
+                    z.extract(member, target)
+        return target
+
+    done, kits = {}, {}
     for name, spec in ASSETS.items():
         if (folder / f"{name}.npz").exists() and not force:
+            continue
+        if spec["source"] == "kenney":
+            if spec["kit"] not in kits:
+                kits[spec["kit"]] = kenney_kit(spec["kit"])
+            scene = trimesh.load(kits[spec["kit"]] / spec["file"])
+            asset = from_trimesh(name, spec["cls"], list(scene.dump(concatenate=False)),
+                                 scale=spec.get("scale", 1.0),
+                                 turn_deg=spec.get("turn_deg", 0.0), meta={
+                "source": f"https://kenney.nl/assets/{spec['kit']}", "licence": "CC0",
+                "authors": ["Kenney"], "note": "low-poly, toy proportions"})
+            asset.save(folder)
+            done[name] = asset.triangles
+            progress(f"{name:<22}{asset.triangles:>6} triangles, "
+                     f"{'x'.join(f'{v:.2f}' for v in asset.size)} m  <- Kenney {spec['kit']} (CC0)")
             continue
         pid = spec["id"]
         info = json.loads(get(f"https://api.polyhaven.com/info/{pid}"))

@@ -1,7 +1,7 @@
 id: johnson_hall_a
 name: Johnson Hall A
 tier: B
-floors: 3
+floors: 4
 wall: '#e1dccb'
 trim: '#6e3b3b'
 glass: '#2f363a'
@@ -12,7 +12,9 @@ window_ratio: 0.6
 shading: eyebrows
 ground_floor: solid
 confidence: medium
-notes: '1957 dormitory: cream with maroon accents and dark window bands.'
+notes: '1957 dormitory: cream with maroon accents and dark window bands. Floor plans show 4 floors plus
+  basement.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1130_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1130.pdf

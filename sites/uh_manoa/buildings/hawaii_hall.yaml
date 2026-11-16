@@ -12,7 +12,9 @@ window_ratio: 0.45
 shading: none
 ground_floor: solid
 confidence: high
-notes: '1912 neoclassical main building: cream walls, columned portico facing Varney Circle.'
+notes: '1912 neoclassical main building: cream walls, columned portico facing Varney Circle. Floor plans
+  show 3 floors.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1002_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1002.pdf

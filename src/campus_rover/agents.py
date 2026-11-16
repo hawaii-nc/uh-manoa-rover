@@ -208,7 +208,7 @@ def add_cat(scene: Scene, group: str, x, y, z, yaw, rng) -> None:
 
 
 def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenario,
-             road_segments: list[dict] | None = None, surface=None) -> dict:
+             road_segments: list[dict] | None = None, surface=None, library=None) -> dict:
     """Fill `scene` with agents for one scenario. Returns counts per class.
 
     ground_z(x, y) -> elevation. `surface(x, y)` -> "grass" | "walkway" | "road" (optional).
@@ -228,6 +228,18 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
 
     def z_at(x, y) -> float:
         return float(ground_z(x, y))
+
+    from .assets import of_class
+
+    car_models = of_class(library or {}, "car")
+
+    def car(x, y, yaw) -> None:
+        """A real car model when one is in the library, else the box stand-in."""
+        if car_models:
+            scene.place(car_models[rng.integers(len(car_models))], "agents/cars", x, y,
+                        z_at(x, y), yaw)
+        else:
+            add_car(scene, "agents/cars", x, y, z_at(x, y), yaw, rng)
 
     # People (and riders) along walkways, as many as the crowd model expects.
     for u, v, data in graph.g.edges(data=True):
@@ -283,7 +295,7 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
     for stall in model.vehicle_spawns if model else []:
         x, y = stall.xy
         if inside(x, y) and rng.random() < scenario.parked_share:
-            add_car(scene, "agents/cars", x, y, z_at(x, y), road_heading(x, y) + math.pi / 2, rng)
+            car(x, y, road_heading(x, y) + math.pi / 2)
             counts["car"] += 1
     for seg in roads:
         if seg.get("subclass") in ("parking_aisle", "driveway"):
@@ -297,8 +309,7 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
                 px, py = _local(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, yaw, 0.0,
                                 -1.5 if forward else 1.5)
                 if inside(px, py):
-                    add_car(scene, "agents/cars", px, py, z_at(px, py),
-                            yaw if forward else yaw + math.pi, rng)
+                    car(px, py, yaw if forward else yaw + math.pi)
                     counts["car"] += 1
 
     # Carts on walkways, chickens on grass, cats near buildings.

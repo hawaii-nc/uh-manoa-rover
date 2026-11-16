@@ -1,7 +1,7 @@
 id: bilger_addition
 name: Bilger Addition
 tier: A
-floors: 6
+floors: 5
 wall: '#bcb5a6'
 trim: '#a9a293'
 glass: '#35434b'
@@ -12,7 +12,9 @@ window_ratio: 0.3
 shading: none
 ground_floor: solid
 confidence: medium
-notes: '1972 chemistry labs: grey-beige panels with a central strip of windows.'
+notes: '1972 chemistry labs: grey-beige panels with a central strip of windows. Floor plans show 5 floors
+  plus basement and mezzanine.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1126A_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1126A.pdf

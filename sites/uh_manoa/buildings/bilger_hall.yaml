@@ -1,7 +1,7 @@
 id: bilger_hall
 name: Bilger Hall
 tier: A
-floors: null
+floors: 3
 wall: '#d8d2bf'
 trim: '#c4bda8'
 glass: '#2f3940'
@@ -12,7 +12,9 @@ window_ratio: 0.7
 shading: eyebrows
 ground_floor: solid
 confidence: high
-notes: 1951. Cream concrete with long dark window bands and no interior corridors.
+notes: 1951. Cream concrete with long dark window bands and no interior corridors. Floor plans show 3
+  floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1126_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1126.pdf

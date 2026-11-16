@@ -13,7 +13,8 @@ shading: lanai
 ground_floor: arcade
 confidence: medium
 notes: '1972 engineering building: grey exposed concrete, open-air corridors with railings on every floor,
-  columns at ground level.'
+  columns at ground level. Floor plans show 5 floors plus basement and mezzanine.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1163_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1163.pdf

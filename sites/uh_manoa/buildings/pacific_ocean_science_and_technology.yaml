@@ -12,7 +12,9 @@ window_ratio: 0.85
 shading: none
 ground_floor: arcade
 confidence: high
-notes: 1995. Blue glass curtain wall in a grey-tan frame, columns at ground level.
+notes: 1995. Blue glass curtain wall in a grey-tan frame, columns at ground level. Floor plans show 8
+  floors plus basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1162_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1162.pdf

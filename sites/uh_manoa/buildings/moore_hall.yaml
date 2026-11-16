@@ -1,7 +1,7 @@
 id: moore_hall
 name: Moore Hall
 tier: B
-floors: null
+floors: 6
 wall: '#e3dcc6'
 trim: '#cfc8b2'
 glass: '#3f4a4e'
@@ -12,7 +12,9 @@ window_ratio: 0.5
 shading: fins
 ground_floor: arcade
 confidence: medium
-notes: 1969. Cream with close vertical fins and a folded-concrete entry canopy.
+notes: 1969. Cream with close vertical fins and a folded-concrete entry canopy. Floor plans show 6 floors
+  plus basement and mezzanine.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1175_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1175.pdf

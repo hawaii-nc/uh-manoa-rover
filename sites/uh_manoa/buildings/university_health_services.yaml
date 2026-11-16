@@ -12,7 +12,9 @@ window_ratio: 0.2
 shading: none
 ground_floor: solid
 confidence: medium
-notes: '1963 single storey: cream panels, dark fascia, patterned screen-block wall.'
+notes: '1963 single storey: cream panels, dark fascia, patterned screen-block wall. Floor plans show 1
+  floor.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1190_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1190.pdf

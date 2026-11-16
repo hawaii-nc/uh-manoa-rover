@@ -1,7 +1,7 @@
 id: business_administration_building_shidler
 name: Business Administration Building - Shidler
 tier: B
-floors: null
+floors: 6
 wall: '#b7b4ad'
 trim: '#a3a099'
 glass: '#30373b'
@@ -12,7 +12,8 @@ window_ratio: 0.25
 shading: none
 ground_floor: solid
 confidence: medium
-notes: '1971 exposed concrete: large blank walls, few narrow windows.'
+notes: '1971 exposed concrete: large blank walls, few narrow windows. Floor plans show 6 floors.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1017_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1017.pdf

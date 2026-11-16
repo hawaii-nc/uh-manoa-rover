@@ -12,7 +12,9 @@ window_ratio: 0.35
 shading: fins
 ground_floor: solid
 confidence: medium
-notes: 1966. Grey concrete, two floors of tall narrow windows between vertical fins.
+notes: 1966. Grey concrete, two floors of tall narrow windows between vertical fins. Floor plans show
+  2 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1081_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1081.pdf

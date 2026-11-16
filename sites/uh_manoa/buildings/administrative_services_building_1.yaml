@@ -12,7 +12,8 @@ window_ratio: 0.6
 shading: none
 ground_floor: arcade
 confidence: low
-notes: 1952. Low building, dark roof edge, lava-rock wall.
+notes: 1952. Low building, dark roof edge, lava-rock wall. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1124_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1124.pdf

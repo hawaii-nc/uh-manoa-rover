@@ -12,7 +12,8 @@ window_ratio: 0.3
 shading: fins
 ground_floor: solid
 confidence: low
-notes: 1961. Cream block behind a tall patterned sun screen.
+notes: 1961. Cream block behind a tall patterned sun screen. Floor plans show 4 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1168_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1168.pdf

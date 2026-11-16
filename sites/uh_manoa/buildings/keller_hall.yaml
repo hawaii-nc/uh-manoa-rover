@@ -1,7 +1,7 @@
 id: keller_hall
 name: Keller Hall
 tier: A
-floors: 4
+floors: 5
 wall: '#e4e0d2'
 trim: '#cfcab8'
 glass: '#4f6672'
@@ -12,7 +12,9 @@ window_ratio: 0.6
 shading: fins
 ground_floor: solid
 confidence: medium
-notes: '1959 modernist: white-cream walls, vertical window strips, glazed stair tower.'
+notes: '1959 modernist: white-cream walls, vertical window strips, glazed stair tower. Floor plans show
+  5 floors.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1158_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1158.pdf

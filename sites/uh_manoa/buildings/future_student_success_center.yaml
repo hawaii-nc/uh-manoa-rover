@@ -13,7 +13,8 @@ shading: eyebrows
 ground_floor: arcade
 confidence: medium
 notes: '1956, the former Sinclair Library: sandstone-faced columns, louvred window bands, open ground
-  floor.'
+  floor. Floor plans show 4 floors plus basement and mezzanine.'
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1133_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1133.pdf

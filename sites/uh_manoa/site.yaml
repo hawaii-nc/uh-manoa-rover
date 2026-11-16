@@ -122,3 +122,5 @@ world:
     file: cache/opendata/uh_light_poles.json
     status_field: STATUS
     keep: [Active]
+  # UH Planning's floor-plan PDFs, one per building number: used for floor counts only.
+  floor_plans: https://manoa.hawaii.edu/planning/Public/PDF/{number}.pdf

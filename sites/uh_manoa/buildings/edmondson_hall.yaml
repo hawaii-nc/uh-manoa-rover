@@ -1,7 +1,7 @@
 id: edmondson_hall
 name: Edmondson Hall
 tier: A
-floors: 4
+floors: 5
 wall: '#c9c9c4'
 trim: '#b6b6b0'
 glass: '#333b40'
@@ -12,7 +12,8 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 1962. Light grey panels with deep recessed balconies.
+notes: 1962. Light grey panels with deep recessed balconies. Floor plans show 5 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1164_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1164.pdf

@@ -1,7 +1,7 @@
 id: saunders_hall
 name: Saunders Hall
 tier: B
-floors: 7
+floors: 8
 wall: '#b4b1a8'
 trim: '#a19e95'
 glass: '#333a3e'
@@ -12,7 +12,8 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 1974. Seven-storey, five-sided grey concrete with open corridors.
+notes: 1974. Seven-storey, five-sided grey concrete with open corridors. Floor plans show 8 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1014_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1014.pdf

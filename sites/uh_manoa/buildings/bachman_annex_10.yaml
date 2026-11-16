@@ -12,7 +12,8 @@ window_ratio: 0.6
 shading: none
 ground_floor: solid
 confidence: medium
-notes: Raised cream wooden annex with louvre windows and a ramp.
+notes: Raised cream wooden annex with louvre windows and a ramp. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1103B_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1103B.pdf

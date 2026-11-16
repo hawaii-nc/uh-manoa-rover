@@ -1,7 +1,7 @@
 id: sakamaki_hall
 name: Sakamaki Hall
 tier: B
-floors: 4
+floors: 5
 wall: '#cfc6ad'
 trim: '#bbb299'
 glass: '#394246'
@@ -12,7 +12,9 @@ window_ratio: 0.5
 shading: lanai
 ground_floor: solid
 confidence: medium
-notes: 1977. Beige concrete wings with open corridors around an open centre.
+notes: 1977. Beige concrete wings with open corridors around an open centre. Floor plans show 5 floors
+  plus basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1047_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1047.pdf

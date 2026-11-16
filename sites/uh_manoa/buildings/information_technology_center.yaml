@@ -1,7 +1,7 @@
 id: information_technology_center
 name: Information Technology Center
 tier: A
-floors: null
+floors: 7
 wall: '#d7d9d8'
 trim: '#b9bcbb'
 glass: '#5a7482'
@@ -12,7 +12,9 @@ window_ratio: 0.8
 shading: eyebrows
 ground_floor: storefront
 confidence: medium
-notes: 2014. White and grey with rows of horizontal metal sunshades over glass.
+notes: 2014. White and grey with rows of horizontal metal sunshades over glass. Floor plans show 7 floors
+  plus basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1140_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1140.pdf

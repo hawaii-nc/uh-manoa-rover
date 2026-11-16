@@ -1,7 +1,7 @@
 id: hamilton_library_addition
 name: Hamilton Library Addition
 tier: B
-floors: null
+floors: 6
 wall: '#a9a9a4'
 trim: '#8f8f8a'
 glass: '#2b3338'
@@ -12,7 +12,9 @@ window_ratio: 0.6
 shading: fins
 ground_floor: storefront
 confidence: low
-notes: 2000. Grey metal panels and dark glass under a sloped roof edge.
+notes: 2000. Grey metal panels and dark glass under a sloped roof edge. Floor plans show 6 floors plus
+  basement.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1199C_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1199C.pdf

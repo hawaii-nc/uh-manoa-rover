@@ -31,6 +31,7 @@ Every shape, position and colour near the route comes from a named data source. 
 | Building footprints | UH campus map; City and County of Honolulu footprints; OpenStreetMap | Building is not built |
 | Building shape and roof type | Lidar roof heights inside each footprint | One box at the mapped height |
 | Wall colour, windows, shading, ground floor | A style sheet citing UH's photo of that building | **Plain grey shape, no windows** (`unverified`) |
+| Number of floors | UH Planning's floor-plan PDFs: one sheet per level (76 of the 95 buildings) | The photo, when it shows the floors; otherwise the measured height |
 | Roof colour | The photo, when it shows the roof; otherwise a grey whose lightness is the measured lidar brightness of that roof | Neutral grey |
 | Doors | UH's Automatic Doors layer | **No door** |
 | Trees | UH tree survey: position, species, height, crown | Height from the lidar canopy |
@@ -39,7 +40,7 @@ Every shape, position and colour near the route comes from a named data source. 
 
 Generic "background" buildings are only allowed more than 120 m from the route. The year a building was built is never used to guess its look.
 
-**What still involves judgement.** Curbs are drawn 15 cm high, the standard 6-inch curb: the lidar grid is too coarse to measure a curb (it shows a smoothed 5 cm step). Textures are generic CC0 material photos from Poly Haven, tinted to each surface's colour; they show what concrete or asphalt looks like, not UH's actual pavement. Wall colours and window patterns are read off one photo per building by eye. Floor counts come from the photo where it shows them, and otherwise from the measured height. Prop shapes are generic and their facing is arbitrary. People and vehicles are synthetic by design.
+**What still involves judgement.** Curbs are drawn 15 cm high, the standard 6-inch curb: the lidar grid is too coarse to measure a curb (it shows a smoothed 5 cm step). Textures are generic CC0 material photos from Poly Haven, tinted to each surface's colour; they show what concrete or asphalt looks like, not UH's actual pavement. Wall colours and window patterns are read off one photo per building by eye. Floor counts come from UH's floor plans for 76 buildings; for the other 19 they come from the photo or the measured height. A plan's count covers the whole building, so it is matched to the roof level it explains best, which leaves a few odd floor heights (Gartley and Miller Halls at 5.7 m, George Hall at 2.7 m) where a raised basement or a sloping site is involved. Prop shapes are generic and their facing is arbitrary. People and vehicles are synthetic by design.
 
 ### Checks against official data the world was not built from
 
@@ -122,12 +123,15 @@ A model is stored once and placed many times, so 422 benches cost one bench. `as
 
 | Model | Source | Licence | Placed where |
 |---|---|---|---|
+| Six cars: sedan, hatchback, SUV, van, pickup, delivery van | Kenney, *Car Kit* | CC0 | Mapped parking stalls and on roads, per scenario |
 | Bench | Poly Haven, *painted_wooden_bench* | CC0 | UH's Outdoor Seating points |
 | Street light | Poly Haven, *street_lamp_01* | CC0 | UH's surveyed light poles, scaled to the lidar height |
 
-Both are generic shapes: UH's real benches and lamp types look different. Their positions are real.
+All are generic shapes: UH's real benches and lamp types look different, and the cars are low-poly with toy-like proportions (about 3.5 m long, wider and taller than a real car). Their positions are real or come from the scenario.
 
-**Still stand-ins: people, cars, bikes, animals.** Microsoft's Rocketbox avatars (MIT licence, 115 rigged people) are the right source for people, but they ship as FBX files and the converter could not be run in the cloud build session. No CC0 car, bike or animal source was reachable from that session either. In Isaac Sim, the simplest route is its own bundled people and vehicles.
+![cars](img/world_cars.jpg)
+
+**Still stand-ins: people, bikes, animals.** Microsoft's Rocketbox avatars (MIT licence, 115 rigged people) are the right source for people, but they ship as FBX files and the converter could not be run in the cloud build session. poly.pizza, which hosts CC0 bikes and animals, sits behind a browser check that scripts cannot pass. In Isaac Sim, the simplest route is its own bundled people and vehicles.
 
 ### Why Street View is not used
 
@@ -178,7 +182,7 @@ sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 | 673 of 830 walls are flat | The lidar saw no clear wall top there, often under trees | Your photos or notes of wall heights |
 | The world file is about 50 MB | Each textured building face needs its own vertices | Fine for Isaac Sim; slower to load in a browser |
 | People and vehicles are blocky | Procedural stand-ins; see "Free 3D models" for what blocked real ones | Rocketbox people once the FBX files can be converted; Isaac Sim's bundled people and vehicles |
-| Benches and street lights are generic shapes | No model of UH's actual furniture exists | Your photos, then matching models |
+| Benches, street lights and cars are generic shapes | No model of UH's actual furniture exists; the free cars are toy-proportioned | Your photos, then matching models; Isaac Sim's vehicles |
 | Most buildings have no door | UH maps only automatic doors: 16 in the corridor | Your photos or notes of where entrances are |
 | 13 buildings near the route are plain grey | City or OSM footprints that UH's map does not name, so there is no photo | Tell me what they are; `world.json` lists them as `unverified` |
 | Styles come from one photo each; 47 of them from small thumbnails | UH's campus-map photos | Your corrections; more photos |
@@ -196,5 +200,7 @@ sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 | State of Hawaiʻi GIS, *Oahu Elevation Contours 100ft* | Terrain check |
 | PacIOOS GeoServer: government land ownership, watersheds, streams | Regional context recorded in `world.json`. Its server only offers an older key exchange, so the cipher level is lowered for that host alone; its certificate is still checked. |
 | UH Mānoa Library MAGIS | Consulted as a reference. It serves no machine-readable campus layers. |
+| UH Mānoa Planning, floor-plan PDFs | Floor counts only. UH asks that the plans are not passed on, so the PDFs stay in `cache/` and out of this repo. |
+| Kenney (CC0) | Six car models from the *Car Kit* |
 | Poly Haven (CC0) | Nine tiling material textures in `src/campus_rover/textures/`, listed with their sources in `textures.json`; the bench and street-light models |
 | © OpenStreetMap contributors (ODbL), via Overture Maps | Walkways, roads, footprints the city layer lacks. `sites/uh_manoa/graph.osm.yaml` is derived from that data. |

@@ -12,7 +12,8 @@ window_ratio: 0.35
 shading: none
 ground_floor: solid
 confidence: medium
-notes: Single-storey tan cottage under a brown hip roof.
+notes: Single-storey tan cottage under a brown hip roof. Floor plans show 1 floor.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/thumbnails/1024_01_thumb.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1024.pdf

@@ -13,7 +13,8 @@ shading: none
 ground_floor: solid
 confidence: medium
 notes: 1996. Cream walls with grey-green trim and cornice, regular window grid, wide front steps, inner
-  courtyard.
+  courtyard. Floor plans show 3 floors.
 sources:
 - https://map.hawaii.edu/images/MA/building_images/1016_01.jpg
 - UH Mānoa campus map, Buildings layer (year built, description)
+- https://manoa.hawaii.edu/planning/Public/PDF/1016.pdf
