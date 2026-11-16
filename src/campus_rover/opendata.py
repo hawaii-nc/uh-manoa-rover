@@ -71,6 +71,16 @@ SOURCES.update({
         "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
         "url": f"{_UH}/MA/MA_LightPoles/FeatureServer/0",
     },
+    "uh_fences": {
+        "title": "MA fences and gates (chain-link, metal, gate lines)",
+        "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
+        "url": f"{_UH}/MA_Hosted/MA_CommunityMapsPrepHosted_MIL202606/MapServer/2",
+    },
+    "uh_roads": {
+        "title": "MA road centerlines (named streets)",
+        "publisher": _UH_NAME, "portal": "https://map.hawaii.edu/manoa",
+        "url": f"{_UH}/MA_Hosted/MA_CommunityMapsPrepHosted_MIL202606/MapServer/21",
+    },
 })
 PACIOOS_WFS = "https://geo.pacioos.hawaii.edu/geoserver/PACIOOS/ows"
 PACIOOS_LAYERS = {

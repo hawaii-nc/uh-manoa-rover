@@ -228,7 +228,7 @@ def cmd_build_walknet(args) -> int:
 
     from .lidar import Rasters
     from .walknet import WalkParams, build_walk_graph, landmark_connectivity
-    from .world import WorldConfig, building_polygon, load_landcover
+    from .world import WorldConfig, building_polygon, fence_polygons, load_landcover
 
     site = load_site(args.site, args.sites_dir)
     cfg = WorldConfig.from_site(site)
@@ -236,6 +236,7 @@ def cmd_build_walknet(args) -> int:
     if cfg.vertical_shift_m:
         rasters.shift_z(cfg.vertical_shift_m)
     features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+    features += fence_polygons(site, cfg)
     by: dict = {}
     for geom, cls, _paint in features:
         by.setdefault(cls, []).append(geom)
@@ -246,8 +247,10 @@ def cmd_build_walknet(args) -> int:
     bbox = rasters.bounds
     model = site.load_model()
     params = WalkParams(min_width_m=args.min_width)
+    found = find_crossings(site, by, bbox, crossings, params)
     graph, rep = build_walk_graph(by, rasters, bbox, crossings, params,
-                                  building_polys=[building_polygon(b) for b in model.buildings])
+                                  building_polys=[building_polygon(b) for b in model.buildings],
+                                  crossings=found)
     out = site.root / "cache" / "graph.walk.yaml"
     out.parent.mkdir(parents=True, exist_ok=True)
     graph.save(out)
@@ -262,6 +265,9 @@ def cmd_build_walknet(args) -> int:
     print(f"  pieces: {rep.components_before_repair} before gap repair, {rep.components_after}"
           f" after ({rep.gap_links} gap links, {rep.gap_length_m:.0f} m; "
           f"{rep.fragments_dropped} fragments dropped)")
+    tiers = {t: sum(c.tier == t for c in found) for t in ("confirmed", "marked", "supported",
+                                                          "candidate")}
+    print(f"  crossings by evidence: {tiers} (candidates are kept but never used for a route)")
     print(f"  stairs {rep.stairs_edges} ({rep.stairs_only_links} join otherwise separate pieces)"
           f" · crosswalks {rep.crosswalks} ({rep.crosswalks_with_curb_cuts} with curb cuts at"
           f" both ends, {rep.crosswalks_unsnapped} not on the network)")
@@ -269,6 +275,37 @@ def cmd_build_walknet(args) -> int:
         print(f"  {name}: {info}")
     print(f"  all landmarks in one piece: {conn['all_connected']}")
     return 0
+
+
+def find_crossings(site, by: dict, bbox, marked, params):
+    """Every place a rover could cross a road, by evidence tier, saved to cache/crossings.json."""
+    import json
+
+    from shapely.geometry import LineString, box
+    from shapely.ops import unary_union
+
+    from .crossings import combine, detect_crossings, from_marked, load_confirmed
+    from .walknet import walkable_surface
+
+    region = box(*bbox)
+    road = unary_union(by.get("road", [])).intersection(region)
+    curbs = unary_union(by["curb"]) if by.get("curb") else None
+    ramps = unary_union(by["ramp"]) if by.get("ramp") else None
+    names = []
+    roads_file = site.root / "cache" / "opendata" / "uh_roads.json"
+    if roads_file.exists():
+        for f in json.loads(roads_file.read_text()):
+            geom = f.get("geometry") or {}
+            parts = geom.get("coordinates") or []
+            parts = [parts] if geom.get("type") == "LineString" else parts
+            names += [(str(f["properties"].get("NAME")), LineString(p)) for p in parts]
+    walk = walkable_surface(by, bbox, params)
+    found = combine(detect_crossings(walk, road, curbs, ramps, marked, names),
+                    from_marked(marked, names, curbs, ramps),
+                    load_confirmed(site.root / "crossings.yaml"))
+    out = site.root / "cache" / "crossings.json"
+    out.write_text(json.dumps([c.to_dict() for c in found]))
+    return found
 
 
 def cmd_build_traversal(args) -> int:
@@ -282,7 +319,7 @@ def cmd_build_traversal(args) -> int:
         save_lut,
         summarize,
     )
-    from .world import WorldConfig, building_polygon, load_landcover
+    from .world import WorldConfig, building_polygon, fence_polygons, load_landcover
 
     site = load_site(args.site, args.sites_dir)
     cfg = WorldConfig.from_site(site)
@@ -291,6 +328,7 @@ def cmd_build_traversal(args) -> int:
         rasters.shift_z(cfg.vertical_shift_m)
     model = site.load_model()
     features = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+    features += fence_polygons(site, cfg)
     discs = [(t.xy[0], t.xy[1], max((t.props.get("trunk_diameter_m") or 0.3) / 2, 0.12) + 0.05)
              for t in model.trees]
     discs += [(p.xy[0], p.xy[1], 0.35) for p in model.props
@@ -348,22 +386,28 @@ def cmd_measure_curbs(args) -> int:
 
 
 def cmd_blockers(args) -> int:
-    """For a route, list what stops a rover: the least-blocked path and each blocked stretch."""
+    """For a route, list what stops a rover: the least-blocked path and each blocked stretch.
+    A building counts as reached when the rover can pull up anywhere within 4 m of its walls."""
     import itertools
+
+    from .planner import landmark_goals
 
     site = load_site(args.site, args.sites_dir)
     planner = RoutePlanner.from_site(site)
-    nodes = _route_nodes(site, planner, args.route)
+    if args.route not in site.routes:
+        raise SystemExit(f"unknown route {args.route!r}; choose from {sorted(site.routes)}")
+    goals = landmark_goals(site, planner)
     route = site.routes[args.route]
     print(f"{site.name} · route {route.key}: {route.label}")
     print(f"rover limits: slope <= {planner.params.max_slope:.1%}, stairs "
-          f"{'allowed' if planner.params.allow_stairs else 'not allowed'}, closures respected")
+          f"{'allowed' if planner.params.allow_stairs else 'not allowed'}, closures respected, "
+          f"unverified crossings "
+          f"{'allowed' if planner.params.allow_candidate_crossings else 'not used'}")
     total = 0
-    for a, b in itertools.pairwise(nodes):
-        names = (f"{site.landmark_label(_label_of(site, planner, a))} -> "
-                 f"{site.landmark_label(_label_of(site, planner, b))}")
+    for a, b in itertools.pairwise(route.waypoints):
+        names = f"{site.landmark_label(a)} -> {site.landmark_label(b)}"
         try:
-            info = planner.blockers(a, b)
+            info = planner.blockers(goals[a], goals[b])
         except NoRouteError as e:
             print(f"\n{names}: NO ROUTE AT ALL, even over impassable ground.\n  {e}")
             total += 1
@@ -378,11 +422,6 @@ def cmd_blockers(args) -> int:
                   f"  steepest {st['max_grade']:.0%}")
     print(f"\n{total} blocked stretch(es) in total" if total else "\nthe route is passable")
     return 0
-
-
-def _label_of(site, planner, node) -> str:
-    nodes = site.landmark_nodes(planner.graph)
-    return next((k for k, v in nodes.items() if v == node), node)
 
 
 def cmd_build_plans(args) -> int:

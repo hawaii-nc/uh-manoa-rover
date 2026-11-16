@@ -118,7 +118,7 @@ class RoutePlanner:
             return False
         if data["kind"] == "stairs" and not self.params.allow_stairs:
             return False
-        if self._too_narrow(data) or self._no_curb_cut(data):
+        if self._too_narrow(data) or self._no_curb_cut(data) or self._unverified(data):
             return False
         return abs(data["slope"]) <= self.params.max_slope
 
@@ -126,6 +126,11 @@ class RoutePlanner:
         width = data.get("width")
         return bool(self.params.min_width_m and width is not None
                     and width < self.params.min_width_m)
+
+    def _unverified(self, data: dict) -> bool:
+        """A crossing only the geometry suggests: not used unless the planner is told to."""
+        return bool(data["kind"] == "crosswalk" and data.get("tier") == "candidate"
+                    and not self.params.allow_candidate_crossings)
 
     def _no_curb_cut(self, data: dict) -> bool:
         return bool(self.params.require_curb_cut and data["kind"] == "crosswalk"
@@ -136,6 +141,8 @@ class RoutePlanner:
             return f"closed ({data['closed_reason']})"
         if data["kind"] == "stairs" and not self.params.allow_stairs:
             return "stairs"
+        if self._unverified(data):
+            return "unverified crossing"
         if self._too_narrow(data):
             return f"too narrow ({data['width']:.1f} m < {self.params.min_width_m:.1f} m)"
         if self._no_curb_cut(data):
@@ -175,22 +182,37 @@ class RoutePlanner:
 
     # ---- diagnosis ------------------------------------------------------------
 
-    def blockers(self, src: str, dst: str, penalty_m: float = 500.0) -> dict:
+    def access_nodes(self, polygon, within_m: float = 4.0) -> list[str]:
+        """Path nodes within `within_m` of a building footprint: anywhere along its walls a
+        rover could pull up. A building is reached when any of them is."""
+        from shapely.geometry import Point
+
+        return [n for n in self.graph.g
+                if polygon.distance(Point(*self.graph.xy(n))) <= within_m]
+
+    def blockers(self, src, dst, penalty_m: float = 500.0) -> dict:
         """The route that crosses the least impassable ground, and every stretch of it that
         a rover cannot use. Used to say *why* there is no route, and where to look.
 
         Returns {"length_m", "path", "stretches": [{reason, kind, from, to, length_m,
         max_grade}]} with consecutive blocked edges of one reason merged."""
         g = self.graph.g
-        if src not in g or dst not in g:
-            raise NoRouteError(f"unknown node {src!r} or {dst!r}")
+        srcs = [src] if isinstance(src, str) else list(src)
+        dsts = [dst] if isinstance(dst, str) else list(dst)
+        if not srcs or not dsts or any(n not in g for n in srcs + dsts):
+            raise NoRouteError(f"unknown node in {src!r} or {dst!r}")
         import networkx as nx
 
         weights = nx.Graph()
         for u, v, d in g.edges(data=True):
             weights.add_edge(u, v, w=d["length"] + (0.0 if self.passable(d) else penalty_m))
+        for n in srcs:                  # a set of start or end nodes: join each to a virtual one
+            weights.add_edge("__src", n, w=0.0)
+        for n in dsts:
+            weights.add_edge(n, "__dst", w=0.0)
+        src, dst = srcs[0], dsts[0]
         try:
-            path = nx.shortest_path(weights, src, dst, weight="w")
+            path = nx.shortest_path(weights, "__src", "__dst", weight="w")[1:-1]
         except nx.NetworkXNoPath as e:
             gap = self.closest_approach(src, dst)
             raise NoRouteError(
@@ -217,6 +239,31 @@ class RoutePlanner:
         for st in stretches:
             st.pop("_last", None)
         return {"length_m": length, "path": path, "stretches": stretches}
+
+    def connecting_options(self, srcs, dsts) -> list[dict]:
+        """Single links that would join the passable pieces holding `srcs` and `dsts`: the
+        impassable edges whose only fault is that the crossing is unverified. Each is a place
+        to check on the ground. Sorted by how much evidence backs it, then by length."""
+        import networkx as nx
+
+        g = self.graph.g
+        usable = nx.Graph()
+        usable.add_nodes_from(g)
+        usable.add_edges_from((u, v) for u, v, d in g.edges(data=True) if self.passable(d))
+        side_a = set().union(*(nx.node_connected_component(usable, n) for n in srcs))
+        side_b = set().union(*(nx.node_connected_component(usable, n) for n in dsts))
+        if side_a & side_b:
+            return []
+        out = []
+        for u, v, d in g.edges(data=True):
+            if self.why_impassable(d) != "unverified crossing":
+                continue
+            if (u in side_a and v in side_b) or (v in side_a and u in side_b):
+                evidence = [e for e in (d.get("evidence") or "").split(", ") if e]
+                out.append({"from": self.graph.xy(u), "to": self.graph.xy(v),
+                            "length_m": d["length"], "road": d.get("road"),
+                            "evidence": evidence, "curb_cut": d.get("curb_cut")})
+        return sorted(out, key=lambda o: (-len(o["evidence"]), o["length_m"]))
 
     def closest_approach(self, src: str, dst: str) -> dict:
         """Where the map pieces holding two nodes come closest, ignoring edge passability."""
@@ -359,4 +406,19 @@ def _rescore(planner: RoutePlanner, plan: Plan) -> Plan:
         out.legs.append(new)
         out.nodes.append(new.v)
         t = t.plus_seconds(new.duration_s)
+    return out
+
+
+def landmark_goals(site, planner: RoutePlanner, within_m: float = 4.0) -> dict[str, list[str]]:
+    """Landmark key -> the path nodes that count as arriving there: every node within
+    `within_m` of its building's footprint, or its single landmark node when it has none."""
+    from .world import building_polygon
+
+    model = site.load_model()
+    out = {}
+    for key, node in site.landmark_nodes(planner.graph).items():
+        spec = site.landmarks[key]
+        building = model.find_building(spec["building"]) if "building" in spec else None
+        near = planner.access_nodes(building_polygon(building), within_m) if building else []
+        out[key] = near or [node]
     return out

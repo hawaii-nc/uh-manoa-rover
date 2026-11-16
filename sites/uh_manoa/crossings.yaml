@@ -1,0 +1,16 @@
+# Crossings you have checked on the ground. build-walknet reads this and treats each as
+# `confirmed`, the strongest evidence: the rover may use it.
+#
+# The explorer lists the roads the route has to cross and no map shows a crosswalk for
+# ("Crossing needed"). Walk each one, then write down what you found:
+#
+#   crossings:
+#     - from: [622485.4, 2355744.2]     # site x, y (EPSG:32604) of the near curb
+#       to:   [622485.8, 2355734.9]     # the far curb
+#       road: Campus Rd
+#       curb_cut: true                  # true / false / leave out when you did not look
+#       source: "walked 2026-11-20, painted crosswalk, ramps both ends"
+#
+# `curb_cut: false` is only ever written here, by someone who looked. Nothing else in the
+# project sets it.
+crossings: []

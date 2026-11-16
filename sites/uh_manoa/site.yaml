@@ -119,6 +119,14 @@ world:
     category_field: ESRI_CATEGORY
     categories: [ParkingLotLines, SportsFieldLines]
     colour_field: DESCRIPTION
+  # Fences and gates (UH): drawn standing on the ground; heights are assumptions.
+  fences:
+    file: cache/opendata/uh_fences.json
+    type_field: ESRI_TYPE
+  # UH's surveyed accessible parking stalls, painted with the accessible symbol.
+  accessible_stalls: cache/layers/accessible_parking.geojson
+  # Crossings found by build-walknet; only marked or confirmed ones get zebra paint.
+  crossings: cache/crossings.json
   # Street lights: UH's surveyed pole positions, drawn with a generic CC0 lamp model.
   light_poles:
     file: cache/opendata/uh_light_poles.json

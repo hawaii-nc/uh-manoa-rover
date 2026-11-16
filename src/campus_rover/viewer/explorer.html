@@ -117,6 +117,7 @@
       <option value="kind">By kind</option>
       <option value="grade">By grade</option>
       <option value="pass">Rover can / cannot</option>
+      <option value="cross">Crossings by evidence</option>
     </select>
   </div>
   <div class="panel" role="group" aria-label="Layers">
@@ -256,7 +257,7 @@ const MODES = { person: { eye: 1.7, speed: 1.4, fast: 4.0, up: 0.4, down: 9 },
 
 const CAT = { break: ['#d32f2f', 'Break in map'], blocked: ['#e53935', 'Blocked stretch'],
   gap: ['#fb8c00', 'Gap link'], crosswalk: ['#1e88e5', 'Crosswalk'], steep: ['#8e24aa', 'Steep'],
-  closure: ['#6d4c41', 'Closed'], unverified: ['#607d8b', 'Grey building'],
+  'crossing-needed': ['#ff1744', 'Crossing needed'], ramp: ['#00acc1', 'Ramp'], unverified: ['#607d8b', 'Grey building'],
   plan: ['#00897b', 'Built from plans'], style: ['#7cb342', 'Low-confidence look'], note: ['#111', 'My notes'] };
 const MARK = { ok: '#2e7d32', bad: '#c62828', '?': '#f9a825' };
 const LABEL = { grass: 0x4caf50, walkway: 0xffd54f, road: 0x455a64, building: 0xb0703c,
@@ -385,6 +386,7 @@ function buildingAt(x, z, pad = 0) {
 // ---------------------------------------------------------------- network ribbons
 let netMesh = null, routeGroup = new THREE.Group(), checkGroup = new THREE.Group(), selRing = null;
 scene.add(routeGroup, checkGroup);
+const F = { gap: 1, closed: 2, cutUnk: 4, cutYes: 8, cutNo: 16, cand: 32, sup: 64, marked: 128, conf: 256, curbRamp: 512, accRamp: 1024 };
 const E = { ax: 0, ay: 1, az: 2, bx: 3, by: 4, bz: 5, kind: 6, piece: 7, width: 8, slope: 9, flags: 10, why: 11, len: 12 };
 function ribbon(points, half, color, lift = 0) {      // points: [[x,y,z],...] -> flat strip
   const pos = [], idx = [];
@@ -400,9 +402,10 @@ function ribbon(points, half, color, lift = 0) {      // points: [[x,y,z],...] -
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   m.renderOrder = 5; return m;
 }
-function buildNetwork() {
-  const n = D.edges.length, pos = new Float32Array(n * 12), col = new Float32Array(n * 12), idx = [];
-  D.edges.forEach((e, i) => {
+let candMesh = null;
+function makeNet(list) {
+  const n = list.length, pos = new Float32Array(n * 12), col = new Float32Array(n * 12), idx = [];
+  list.forEach((e, i) => {
     let dx = e[E.bx] - e[E.ax], dz = e[E.bz] - e[E.az]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
     const h = e[E.kind] === 3 ? 0.9 : 0.5, o = i * 12;
     [[e[E.ax], e[E.ay], e[E.az]], [e[E.bx], e[E.by], e[E.bz]]].forEach((p, k) => {
@@ -413,29 +416,45 @@ function buildNetwork() {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(idx);
-  netMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
-  netMesh.renderOrder = 4; netMesh.visible = false; netMesh.frustumCulled = false; scene.add(netMesh);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  m.renderOrder = 4; m.visible = false; m.frustumCulled = false; scene.add(m); m.userData.list = list; return m;
+}
+function buildNetwork() {
+  netMesh = makeNet(D.edges.filter((e) => !(e[E.flags] & F.cand)));
+  candMesh = makeNet(D.edges.filter((e) => e[E.flags] & F.cand));
 }
 const hue = (i) => new THREE.Color().setHSL(((i * 0.618034) % 1), 0.7, 0.5);
 function edgeColor(e, mode) {
-  const c = new THREE.Color();
+  const c = new THREE.Color(), f = e[E.flags];
   if (mode === 'piece') return e[E.piece] === 0 ? c.set('#2e9e4f') : hue(e[E.piece]);
-  if (mode === 'kind') return c.set(['#6f8da8', '#00bcd4', '#d500f9', '#ffffff'][e[E.kind]]);
+  if (mode === 'kind') {
+    if (e[E.kind] === 1) return c.set(f & F.curbRamp ? '#00897b' : '#00e5ff');
+    return c.set(['#6f8da8', '#00bcd4', '#d500f9', '#ffffff'][e[E.kind]]);
+  }
   if (mode === 'grade') {
     if (e[E.kind] === 2) return c.set('#9c27b0');
     const s = Math.abs(e[E.slope]); return c.set(s <= D.limits.max_slope ? '#2e9e4f' : s <= 0.15 ? '#f2b01e' : '#c62828');
   }
+  if (mode === 'cross') {
+    if (e[E.kind] !== 3) return c.set('#c9d3da');
+    return c.set(f & F.conf ? '#00c853' : f & F.marked ? '#1565c0' : f & F.sup ? '#ff6d00' : '#9e9e9e');
+  }
   return c.set(e[E.why] < 0 ? '#2e9e4f' : '#c62828');
 }
-function recolorNetwork() {
-  if (state.net === 'off') { netMesh.visible = false; return; }
-  const col = netMesh.geometry.attributes.color;
-  D.edges.forEach((e, i) => {
-    const c = edgeColor(e, state.net);
+function paint(mesh, mode) {
+  const col = mesh.geometry.attributes.color;
+  mesh.userData.list.forEach((e, i) => {
+    const c = edgeColor(e, mode);
     for (let k = 0; k < 4; k++) col.setXYZ(i * 4 + k, c.r, c.g, c.b);
-    if (e[E.flags] & 1) for (let k = 0; k < 4; k++) col.setXYZ(i * 4 + k, 1, 0.55, 0);   // gap links always orange
+    if (e[E.flags] & F.gap && mode !== 'cross') for (let k = 0; k < 4; k++) col.setXYZ(i * 4 + k, 1, 0.55, 0);   // gap links always orange
   });
-  col.needsUpdate = true; netMesh.visible = true;
+  col.needsUpdate = true;
+}
+function recolorNetwork() {
+  if (state.net === 'off') { netMesh.visible = false; candMesh.visible = false; return; }
+  paint(netMesh, state.net); netMesh.visible = true;
+  candMesh.visible = state.net === 'cross';
+  if (candMesh.visible) paint(candMesh, 'cross');
 }
 
 function buildRoutes() {
@@ -454,6 +473,7 @@ function buildRoutes() {
 }
 
 // ---------------------------------------------------------------- check markers
+const markGroup = new THREE.Group(); scene.add(markGroup);
 const sprites = new Map();           // id -> sprite
 function markColor(c) { const m = store.marks[c.id]; return m && m.s ? MARK[m.s] : CAT[c.cat][0]; }
 function dotTexture(color, letter) {
@@ -476,7 +496,14 @@ function refreshMarkers() {
     checkGroup.add(stem);
   }
   if (selRing) { scene.remove(selRing); selRing = null; }
+  markGroup.clear();
   const c = byId(state.sel);
+  if (c && c.marks) {              // the lines or stretches this check is about
+    for (let i = 0; i + 1 < c.marks.length; i += 2) {
+      const r = ribbon([c.marks[i], c.marks[i + 1]], c.cat === 'crossing-needed' ? 0.25 : 0.6, c.cat === 'crossing-needed' ? 0xff9100 : 0xff1744, 0.5);
+      r.material.depthTest = false; r.renderOrder = 18; markGroup.add(r);
+    }
+  }
   if (c) {
     selRing = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.18, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
     selRing.rotation.x = Math.PI / 2; selRing.position.set(c.pos[0], c.pos[1] + 0.4, c.pos[2]); selRing.renderOrder = 19; scene.add(selRing);
@@ -579,7 +606,7 @@ addEventListener('keydown', (e) => {
   if (k === 'f') setMode('fly'); else if (k === 'p') setMode('person'); else if (k === 'r') setMode('rover');
   else if (k === 'c') toggle('l-checks');
   else if (k === 't') { const o = ['real', 'trav', 'class']; $('look').value = state.look = o[(o.indexOf(state.look) + 1) % 3]; applyLook(); }
-  else if (k === 'g') { const o = ['off', 'piece', 'kind', 'grade', 'pass']; $('net').value = state.net = o[(o.indexOf(state.net) + 1) % 5]; recolorNetwork(); legend(); }
+  else if (k === 'g') { const o = ['off', 'piece', 'kind', 'grade', 'pass', 'cross']; $('net').value = state.net = o[(o.indexOf(state.net) + 1) % 6]; recolorNetwork(); legend(); }
   else if (k === 'n') addNote();
   else if (k === '?' || k === '/') $('help').style.display = 'flex';
   else if (k === 'escape') { $('help').style.display = 'none'; $('ask').style.display = 'none'; }
@@ -717,7 +744,8 @@ function addNote(at) {
 function notesText() {
   const out = allChecks().filter((c) => store.marks[c.id]?.s || store.marks[c.id]?.note).map((c) => {
     const m = store.marks[c.id], [sx, sy] = toSite(c.pos[0], c.pos[2]);
-    return { id: c.id, what: c.title, category: c.cat, mark: m.s === 'ok' ? 'looks right' : m.s === 'bad' ? 'looks wrong' : m.s === '?' ? 'unsure' : '', note: m.note || '', site_xy: [Math.round(sx), Math.round(sy)] };
+    const lines = c.marks ? c.marks.map((p) => toSite(p[0], p[2]).map((v) => Math.round(v * 10) / 10)) : undefined;   // the lines the check draws, in site x, y
+    return { id: c.id, what: c.title, category: c.cat, mark: m.s === 'ok' ? 'looks right' : m.s === 'bad' ? 'looks wrong' : m.s === '?' ? 'unsure' : '', note: m.note || '', site_xy: [Math.round(sx), Math.round(sy)], ...(lines ? { lines_site_xy: lines } : {}) };
   });
   return JSON.stringify({ site: D.site, built: D.built, marked: out.length, of: allChecks().length, items: out }, null, 1);
 }
@@ -780,23 +808,32 @@ $('bsearch').oninput = renderBuildings; $('bfilter').onchange = renderBuildings;
 
 // ---------------------------------------------------------------- legend and data
 function legend() {
-  const L = D.limits, pc = D.pieces, lm = D.landmarks;
+  const L = D.limits, lm = D.landmarks;
   const sw = (c, t) => `<p><span class="swatch" style="background:${c}"></span>${t}</p>`;
-  const nets = { piece: [['#2e9e4f', 'the main connected network'], ['#e91e63', 'every other colour: a separate piece that does not connect to it']],
-    kind: [['#6f8da8', 'walkway'], ['#00bcd4', 'ramp'], ['#d500f9', 'stairs'], ['#ffffff', 'crosswalk']],
+  const nets = { piece: [['#2e9e4f', 'the main piece a rover can drive'], ['#e91e63', 'every other colour: a piece cut off from it (stairs, steep, closed, no crossing)']],
+    kind: [['#6f8da8', 'walkway'], ['#00e5ff', 'ramp beside stairs or an entrance'], ['#00897b', 'ramp at a street curb'], ['#d500f9', 'stairs'], ['#ffffff', 'crosswalk']],
     grade: [['#2e9e4f', `up to ${(L.max_slope * 100).toFixed(1)} % (rover limit)`], ['#f2b01e', '8–15 %'], ['#c62828', 'over 15 %'], ['#9c27b0', 'stairs']],
-    pass: [['#2e9e4f', 'a rover can use it'], ['#c62828', 'it cannot (stairs, too steep, closed)']] };
-  $('legend').innerHTML = `<h4 style="margin-top:0">The campus model</h4>
-    <p>${fmt(D.size_m[0])} × ${fmt(D.size_m[1])} m around Holmes Hall → Campus Center → Architecture, built ${esc(D.built)} from open data. ${fmt(D.trees)} trees, ${D.buildings.length} buildings, ${D.edges.length} network edges.</p>
-    <h4>Look: “Can a rover go here?”</h4>
-    ${sw('#2e9e4f', 'traversable (walkway, ramp)')}${sw('#f2b01e', 'conditional (grass, road, gravel)')}${sw('#c62828', 'blocked (stairs, curbs, walls, buildings, trees)')}${sw('#1e6bd6', 'people and vehicles')}
+    pass: [['#2e9e4f', 'a rover can use it'], ['#c62828', 'it cannot (stairs, too steep, closed, unverified crossing)']],
+    cross: [['#00c853', 'confirmed by you'], ['#1565c0', 'marked: OpenStreetMap draws a crosswalk'], ['#ff6d00', 'supported: UH maps a ramp or curb gap at both ends'], ['#9e9e9e', 'candidate: only the shape of the road suggests it. Never used for a route'], ['#c9d3da', 'walkways']] };
+  const routes = Object.values(D.routes).flatMap((r) => r.legs).filter((l, i, a) => a.findIndex((m) => m.id === l.id) === i).map((l) => {
+    const p = l.profile;
+    const kinds = p ? Object.entries(p.by_kind_m).map(([k, v]) => `${v} m ${k}`).join(', ') : '';
+    return `<p><b>${esc(l.label)}</b><br>${l.passable ? 'A rover can drive it.' : 'Not driveable yet.'}${l.length_m ? ` ${fmt(l.length_m)} m` : ''}${p ? ` · ${kinds} · narrowest ${p.narrowest_m ?? '?'} m · steepest ${(p.steepest * 100).toFixed(0)} %${p.over_limit_m ? ` (${p.over_limit_m} m over the limit)` : ''}` : ''}` +
+      `${p && p.crossings.length ? `<br>Crosses: ${p.crossings.map((c) => `${esc(c.road || 'a road')} (${c.tier})`).join(', ')}` : ''}` +
+      `${l.stretches.map((s) => `<br><span style="color:#c62828">${esc(s.reason)}, ${s.length_m} m</span>`).join('')}</p>`;
+  }).join('');
+  $('legend').innerHTML = `<h4 style="margin-top:0">Routes</h4>${routes}
+    <p class="small">A building counts as reached when the rover can pull up anywhere within 4 m of its walls.</p>
     <h4>Network: ${$('net').selectedOptions[0].text}</h4>
     ${(nets[state.net] || [['#aaa', 'turn it on from the Network menu']]).map(([c, t]) => sw(c, t)).join('')}${sw('#ff9800', 'gap link (the survey did not connect these pieces; a link was added)')}
-    <h4>Route</h4>${sw('#ff6d00', 'planned route (the least-blocked path)')}${sw('#ff1744', 'a stretch a rover cannot use, or a break in the map')}
+    <h4>Look: “Can a rover go here?”</h4>
+    ${sw('#2e9e4f', 'traversable (walkway, ramp)')}${sw('#f2b01e', 'conditional (grass, road, gravel, gates)')}${sw('#c62828', 'blocked (stairs, curbs, walls, fences, buildings, trees)')}${sw('#1e6bd6', 'people and vehicles')}
     <h4>Where the buildings are on the network</h4>
-    ${Object.values(lm).map((l) => `<p>${esc(l.label)}: piece ${l.piece}${l.piece === 0 ? ' (main network)' : ' (separate)'}</p>`).join('')}
+    ${Object.values(lm).map((l) => `<p>${esc(l.label)}: ${l.access_nodes} places to pull up, ${l.pieces.includes(0) ? 'some on the main piece a rover can drive' : 'none on the main piece, so a rover cannot reach it from there'}</p>`).join('')}
+    <h4>The model</h4>
+    <p>${fmt(D.size_m[0])} × ${fmt(D.size_m[1])} m around Holmes Hall → Campus Center → Architecture, built ${esc(D.built)} from open data. ${fmt(D.trees)} trees, ${D.buildings.length} buildings, ${D.edges.length} network edges.</p>
     <h4>What is assumed, not measured</h4>
-    <p>Rover grade limit ${(L.max_slope * 100).toFixed(1)} % (the ADA ramp figure), stairs ${L.allow_stairs ? '' : 'not '}allowed. Curb height ${(L.curb_height_m_assumed * 100).toFixed(0)} cm: the lidar cannot resolve it. Whether crosswalks have curb cuts is unknown: the survey does not say. Friction values are placeholders until measured on the real rover. The rover in this viewer climbs at most 12 cm.</p>
+    <p>Rover grade limit ${(L.max_slope * 100).toFixed(1)} % (the ADA ramp figure), stairs ${L.allow_stairs ? '' : 'not '}allowed. Curb height ${(L.curb_height_m_assumed * 100).toFixed(0)} cm: the lidar cannot resolve it. Whether a crossing has curb cuts is unknown unless a ramp or a gap in the curb is mapped there. Fence heights (1.8 m chain-link, 1.2 m metal, 1.5 m gate) and zebra-bar sizes are typical values, not measured. Friction values are placeholders. The rover in this viewer climbs at most 12 cm.</p>
     <h4>Sources</h4>
     ${Object.values(D.sources).map((s) => `<p><b>${esc(s.title)}</b>${s.publisher ? `, ${esc(s.publisher)}` : ''}${s.retrieved ? `, retrieved ${esc(s.retrieved)}` : ''}</p>`).join('')}
     <h4>Files</h4><p class="small">${Object.entries(D.sizes_mb).map(([k, v]) => `${esc(k)} ${v} MB`).join(' · ')}</p>`;
@@ -817,6 +854,7 @@ function drawMini() {
   for (const b of D.buildings) { mg.beginPath(); b.ring.forEach(([x, z], i) => { const [px, py] = m2(x, z); i ? mg.lineTo(px, py) : mg.moveTo(px, py); }); mg.closePath(); mg.fill(); }
   mg.lineWidth = 1;
   for (const e of D.edges) {
+    if (e[E.flags] & F.cand && state.net !== 'cross') continue;
     const c = state.net === 'off' ? '#8aa0b0' : '#' + edgeColor(e, state.net).getHexString();
     mg.strokeStyle = c; mg.beginPath(); const a = m2(e[E.ax], e[E.az]), b = m2(e[E.bx], e[E.bz]); mg.moveTo(...a); mg.lineTo(...b); mg.stroke();
   }

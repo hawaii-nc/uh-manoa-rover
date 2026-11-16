@@ -16,18 +16,21 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import shutil
 from datetime import date
 from pathlib import Path
 
 import networkx as nx
 
-from .planner import NoRouteError, RoutePlanner
+from .planner import NoRouteError, RoutePlanner, landmark_goals
 from .traversal import CODE, LEVELS
 from .world import PLANAR_GROUPS, World, export_glb
 
 KINDS = ["walkway", "ramp", "stairs", "crosswalk"]
 FLAG_GAP, FLAG_CLOSED, FLAG_CUT_UNKNOWN, FLAG_CUT_YES, FLAG_CUT_NO = 1, 2, 4, 8, 16
+FLAG_TIER = {"candidate": 32, "supported": 64, "marked": 128, "confirmed": 256}
+FLAG_CURB_RAMP, FLAG_ACCESS_RAMP = 512, 1024
 
 # Ground classes whose geometry stands up (curbs, steps, walls); they go in their own file.
 STRUCTURE_CLASSES = {"curb", "stairs", "wall", "planter"}
@@ -128,7 +131,11 @@ def collect(site, world: World) -> dict:
     planner = RoutePlanner.from_site(site)
     g = planner.graph.g
 
-    pieces = sorted(nx.connected_components(g), key=len, reverse=True)
+    # Pieces are what a rover can drive between: connected over passable edges only.
+    usable = nx.Graph()
+    usable.add_nodes_from(g)
+    usable.add_edges_from((u, v) for u, v, d in g.edges(data=True) if planner.passable(d))
+    pieces = sorted(nx.connected_components(usable), key=len, reverse=True)
     piece_of = {n: i for i, comp in enumerate(pieces) for n in comp}
     why: list[str] = []
     edges = []
@@ -138,6 +145,9 @@ def collect(site, world: World) -> dict:
         if d["kind"] == "crosswalk":
             cut = d.get("curb_cut")
             flags |= FLAG_CUT_UNKNOWN if cut is None else (FLAG_CUT_YES if cut else FLAG_CUT_NO)
+            flags |= FLAG_TIER.get(d.get("tier") or "marked", 0)
+        if d["kind"] == "ramp":
+            flags |= FLAG_CURB_RAMP if d.get("ramp_kind") == "curb" else FLAG_ACCESS_RAMP
         reason = planner.why_impassable(d)
         if reason is not None:
             reason = reason.split(" (")[0]          # "too steep"; the grade is its own column
@@ -149,16 +159,26 @@ def collect(site, world: World) -> dict:
                       round(d["slope"], 3), flags, -1 if reason is None else why.index(reason),
                       round(d["length"], 1)])
 
-    nodes = site.landmark_nodes(planner.graph)
-    landmarks = {k: {"label": site.landmark_label(k), "pos": frame.at(*planner.graph.xy(n)),
-                     "piece": piece_of[n]} for k, n in nodes.items()}
+    goals = landmark_goals(site, planner)
+    by_building = {b["id"]: b for b in report["buildings"]}
+    landmarks = {}
+    for k, nodes_ in goals.items():
+        spec = site.landmarks[k]
+        b = next((x for x in by_building.values()
+                  if spec.get("building", "").lower() in x["name"].lower()), None)
+        xy = b["centroid"] if b else planner.graph.xy(nodes_[0])
+        counts = {}
+        for n in nodes_:
+            counts[piece_of[n]] = counts.get(piece_of[n], 0) + 1
+        landmarks[k] = {"label": site.landmark_label(k), "pos": frame.at(*xy),
+                        "piece": min(counts), "pieces": sorted(counts),
+                        "access_nodes": len(nodes_)}
 
     routes, checks = {}, []
     for key, route in site.routes.items():
         legs = []
         for wa, wb in itertools.pairwise(route.waypoints):
-            leg = _leg(site, planner, frame, nodes[wa], nodes[wb], wa, wb)
-            legs.append(leg)
+            legs.append(_leg(site, planner, frame, goals[wa], goals[wb], wa, wb))
         routes[key] = {"label": route.label, "legs": legs}
     seen = set()
     for r in routes.values():
@@ -168,6 +188,8 @@ def collect(site, world: World) -> dict:
             seen.add(leg["id"])
             checks.extend(_leg_checks(leg))
     checks.extend(_network_checks(planner, frame, piece_of))
+    route_pts = [(p[0] - 0, p[2]) for r in routes.values() for leg in r["legs"] for p in leg["pts"]]
+    checks.extend(_ramp_checks(site, world, frame, route_pts))
     buildings, building_checks = _buildings(report, frame)
     checks.extend(building_checks)
     for c in checks:
@@ -192,14 +214,16 @@ def collect(site, world: World) -> dict:
     }
 
 
-def _leg(site, planner, frame, src, dst, wa, wb) -> dict:
+def _leg(site, planner, frame, srcs, dsts, wa, wb) -> dict:
+    """One leg of a route: the least-blocked path between any entry of the two buildings, what
+    stops a rover on it, the single crossings that would fix it, and a profile of the path."""
     label = f"{site.landmark_label(wa)} → {site.landmark_label(wb)}"
     leg = {"id": f"{wa}>{wb}", "label": label, "passable": False, "length_m": None, "pts": [],
-           "stretches": [], "note": None}
+           "stretches": [], "note": None, "options": [], "profile": None}
     try:
-        info = planner.blockers(src, dst)
+        info = planner.blockers(srcs, dsts)
     except NoRouteError as e:
-        gap = planner.closest_approach(src, dst)
+        gap = planner.closest_approach(srcs[0], dsts[0])
         leg["note"] = str(e)
         leg["break"] = {"distance_m": round(gap["distance_m"], 1), "a": frame.at(*gap["a"]),
                         "b": frame.at(*gap["b"])}
@@ -213,7 +237,38 @@ def _leg(site, planner, frame, src, dst, wa, wb) -> dict:
                                  "to": frame.at(*st["to"], lift=0.3),
                                  "length_m": round(st["length_m"], 1),
                                  "max_grade": round(st["max_grade"], 3)})
+    if any(st["reason"] == "unverified crossing" for st in info["stretches"]):
+        for o in planner.connecting_options(srcs, dsts):
+            leg["options"].append({"from": frame.at(*o["from"], lift=0.3),
+                                   "to": frame.at(*o["to"], lift=0.3),
+                                   "length_m": round(o["length_m"], 1), "road": o["road"],
+                                   "evidence": o["evidence"]})
+    leg["profile"] = _profile(planner, info["path"])
     return leg
+
+
+def _profile(planner, path) -> dict:
+    """What riding this path is like: surfaces, widths, grades and crossings."""
+    g = planner.graph.g
+    by_kind, widths, grades = {}, [], []
+    crossings = []
+    for u, v in itertools.pairwise(path):
+        d = g.edges[u, v]
+        by_kind[d["kind"]] = by_kind.get(d["kind"], 0.0) + d["length"]
+        if d.get("width_min") or d.get("width"):
+            widths.append(d.get("width_min") or d.get("width"))
+        if d["kind"] != "crosswalk":
+            grades.append((abs(d["slope"]), d["length"]))
+        else:
+            crossings.append({"tier": d.get("tier") or "marked", "road": d.get("road"),
+                              "length_m": round(d["length"], 1), "curb_cut": d.get("curb_cut")})
+    total = sum(by_kind.values()) or 1.0
+    limit = planner.params.max_slope
+    return {"by_kind_m": {k: round(v) for k, v in by_kind.items()},
+            "narrowest_m": round(min(widths), 1) if widths else None,
+            "steepest": round(max((g_[0] for g_ in grades), default=0), 3),
+            "over_limit_m": round(sum(length for gr, length in grades if gr > limit)),
+            "crossings": crossings, "length_m": round(total)}
 
 
 def _mid(a, b) -> list:
@@ -232,6 +287,8 @@ def _leg_checks(leg: dict) -> list:
                    "break? The two ends are marked on the map.",
             "marks": [br["a"], br["b"]]})
     for i, st in enumerate(leg["stretches"]):
+        if st["reason"] == "unverified crossing":
+            continue
         out.append({
             "cat": "blocked", "sev": 3, "pos": _mid(st["from"], st["to"]),
             "title": f"{leg['label']}: {st['reason']}, {st['length_m']:.0f} m",
@@ -239,6 +296,72 @@ def _leg_checks(leg: dict) -> list:
                    f"{st['max_grade']:.0%}). Does it look like this on the ground? Is there a "
                    f"way round that the map does not have?",
             "marks": [st["from"], st["to"]], "id": f"blocked-{leg['id']}-{i}"})
+    if leg["options"]:
+        # One check per stretch of road, not one per candidate line across it.
+        zones: list[list[dict]] = []
+        for o in sorted(leg["options"], key=lambda o: (o["road"] or "", o["from"][0])):
+            for z in zones:
+                if z[0]["road"] == o["road"] and math.dist(
+                        (z[-1]["from"][0], z[-1]["from"][2]), (o["from"][0], o["from"][2])) < 40:
+                    z.append(o)
+                    break
+            else:
+                zones.append([o])
+        for z in sorted(zones, key=lambda z: min(o["length_m"] for o in z)):
+            best = min(z, key=lambda o: o["length_m"])
+            n = len(z)
+            road = best["road"] or "a road"
+            out.append({
+                "cat": "crossing-needed", "sev": 3, "pos": _mid(best["from"], best["to"]),
+                "title": f"{leg['label']}: needs a crossing of {road}, none is mapped",
+                "why": f"The two sides join only over {road} ({best['length_m']:.0f} m wide). "
+                       f"The map has no crosswalk and no ramp at the curb here, so the rover "
+                       f"is not allowed to use it until you check. Walk it: is there a "
+                       f"crosswalk, where, and are there curb ramps at both ends? "
+                       f"({n} possible line{'s' if n > 1 else ''} across, all drawn.)",
+                "marks": [m for o in z[:12] for m in (o["from"], o["to"])],
+                "id": f"needed-{leg['id']}-{round(best['from'][0])}-{round(best['from'][2])}"})
+    return out
+
+
+def _ramp_checks(site, world, frame, route_pts) -> list:
+    """Mapped ramps near the route: wheels need them where there are stairs or curbs."""
+    from shapely.geometry import box
+    from shapely.ops import unary_union
+
+    from .walknet import _long_axis, _mean_z
+    from .world import WorldConfig, load_landcover
+
+    cfg = WorldConfig.from_site(site)
+    if not cfg.landcover or not (site.root / cfg.landcover["file"]).exists():
+        return []
+    feats = load_landcover(site.root / cfg.landcover["file"], cfg.landcover)
+    road = unary_union([g for g, c, _ in feats if c == "road"])
+    region = box(*world.rasters.bounds)
+    pts = [(p[0] + frame.ox, -p[1] + frame.oy) for p in route_pts]   # back to site x, y
+    out = []
+    for geom, cls, _ in feats:
+        if cls != "ramp" or not geom.intersects(region):
+            continue
+        for part in getattr(geom, "geoms", [geom]):
+            if part.geom_type != "Polygon" or part.area < 2.0:
+                continue
+            c = part.centroid
+            if pts and min(math.dist((c.x, c.y), p) for p in pts) > 60:
+                continue
+            axis = _long_axis(part)
+            if axis is None or axis[2] < 2.0:
+                continue
+            e1, e2, length, width = axis
+            grade = abs(_mean_z(world.rasters.ground_z, e1) - _mean_z(world.rasters.ground_z, e2)
+                        ) / max(length, 0.1)
+            kind = "curb ramp" if part.distance(road) <= 1.5 else "ramp beside stairs or entrance"
+            out.append({"cat": "ramp", "sev": 1, "pos": frame.at(c.x, c.y, lift=0.3),
+                        "title": f"{kind.capitalize()}, {length:.0f} m long, {width:.1f} m wide, "
+                                 f"grade {grade:.0%}",
+                        "why": "UH maps a ramp here. Does it exist and can a wheel use it: is "
+                               "the grade gentle, is it wide enough, is there a lip at the "
+                               "street end? The grade is measured from the lidar ground."})
     return out
 
 
@@ -253,13 +376,20 @@ def _network_checks(planner, frame, piece_of) -> list:
                         "why": "Two surveyed walkway pieces are joined here by a link over "
                                "ground that is not mapped as walkway. Is there really a "
                                "connection (a worn path, a gap in a wall)?"})
-        elif d["kind"] == "crosswalk":
+        elif d["kind"] == "crosswalk" and d.get("tier") in ("marked", "supported", "confirmed"):
             cut = d.get("curb_cut")
+            tier = d["tier"]
+            how = {"marked": "OpenStreetMap draws a crosswalk here",
+                   "supported": "UH maps a ramp or a gap in the curb at both ends",
+                   "confirmed": "you confirmed it"}[tier]
             out.append({"cat": "crosswalk", "sev": 2, "pos": _mid(a, b), "marks": [a, b],
-                        "title": f"Crosswalk, {d['length']:.0f} m "
-                                 f"(curb cut {'unknown' if cut is None else cut})",
-                        "why": "The survey has no record of ramps at the curb here. Is there "
-                               "a ramp or a flush crossing at both ends?"})
+                        "title": f"{tier.capitalize()} crossing of {d.get('road') or 'a road'}, "
+                                 f"{d['length']:.0f} m (curb cut "
+                                 f"{'unknown' if cut is None else cut})",
+                        "why": f"Why the rover may use it: {how}"
+                               f"{' (' + d['evidence'] + ')' if d.get('evidence') else ''}. "
+                               f"Is there a crosswalk, and are the curb ramps real at both "
+                               f"ends?"})
     # Clusters of steep, non-stairs edges: where the lidar says the grade is above 15 %.
     cells: dict = {}
     for u, v, d in g.edges(data=True):
@@ -279,22 +409,6 @@ def _network_checks(planner, frame, piece_of) -> list:
                     "why": "The lidar says this walkway climbs more than a rover can. Real "
                            "slope or a measurement artefact (a wall, a bridge, a rooftop edge)? "
                            "Check how it feels walking it."})
-    # Construction closures, one check per cluster.
-    cl: dict = {}
-    for u, v, d in g.edges(data=True):
-        if d["closed"]:
-            a, b = planner.graph.xy(u), planner.graph.xy(v)
-            cl.setdefault((round((a[0] + b[0]) / 2 / 30), round((a[1] + b[1]) / 2 / 30)),
-                          []).append((a, b, d))
-    for es in sorted(cl.values(), key=lambda es: -len(es))[:10]:
-        mx = sum((e[0][0] + e[1][0]) / 2 for e in es) / len(es)
-        my = sum((e[0][1] + e[1][1]) / 2 for e in es) / len(es)
-        total = sum(e[2]["length"] for e in es)
-        out.append({"cat": "closure", "sev": 1, "pos": frame.at(mx, my, lift=0.3),
-                    "title": f"Marked closed: {total:.0f} m of walkway "
-                             f"({es[0][2]['closed_reason']})",
-                    "why": "UH's construction layer closes this. Is there still a closure or "
-                           "fence here, or is it open now?"})
     return out
 
 

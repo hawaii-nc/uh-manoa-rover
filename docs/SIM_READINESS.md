@@ -15,6 +15,8 @@ The 3D world looks like UH. A rover model trained in it has to *drive* on campus
 
 Details and commands are in [WORLD.md](WORLD.md#for-the-rover-network-traversability-physics).
 
+**Update (path work):** ramps are now path of their own, crossings carry an evidence tier, and a building counts as reached anywhere along its walls. Holmes Hall → Campus Center is a 348 m route a rover can drive; Campus Center → Architecture needs one road crossing nobody has mapped or checked (see [WORLD.md](WORLD.md#crossings-ramps-and-goals-crossingspy-walknetpy-plannerlandmark_goals)).
+
 To check all of this against the real campus, use the explorer (`campus-rover build-explorer`, see [WORLD.md](WORLD.md#the-explorer-walk-through-it-and-check-it)): it walks the map as a person or as the rover and lists what to verify.
 
 ## 1. What the current world is, measured (before items 1–4)

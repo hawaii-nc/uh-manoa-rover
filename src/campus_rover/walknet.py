@@ -63,6 +63,8 @@ class WalkReport:
     crosswalks: int = 0
     crosswalks_unsnapped: int = 0
     crosswalks_with_curb_cuts: int = 0
+    crossing_candidates: int = 0
+    ramp_edges: int = 0
     by_kind: dict = field(default_factory=dict)
     widths: dict = field(default_factory=dict)
     steep_share: float = 0.0
@@ -110,7 +112,8 @@ def blocked_surface(by: dict):
     flights of stairs (blocked as a whole, including the gaps between treads)."""
     from shapely.ops import unary_union
 
-    parts = [g for c in ("curb", "wall", "rock_wall", "planter", "water") for g in by.get(c, [])]
+    parts = [g for c in ("curb", "wall", "rock_wall", "planter", "water", "fence")
+             for g in by.get(c, [])]
     parts += [t.buffer(0.35) for t in by.get("stairs", [])]
     return unary_union(parts)
 
@@ -223,10 +226,12 @@ def clean_ground(rasters, building_polys, margin_m: float = 1.5, smooth_m: float
 
 
 def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams | None = None,
-                     passages=None, building_polys=()):
+                     passages=None, building_polys=(), crossings=()):
     """Build the network. `by`: land-cover class -> polygons; `crosswalks`: coordinate lists
-    for marked crossings; `passages`: extra walkable polygons (open ground floors).
-    Returns (CampusGraph, WalkReport)."""
+    for marked crossings; `crossings`: `crossings.Crossing` objects (any tier: the usable ones
+    join the network before gap repair, `candidate` ones are added last and flagged, and the
+    planner ignores them unless told otherwise); `passages`: extra walkable polygons (open
+    ground floors). Returns (CampusGraph, WalkReport)."""
     import shapely
     from scipy import ndimage
     from shapely.geometry import LineString, Point
@@ -260,6 +265,9 @@ def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams 
     ramps = unary_union(by.get("ramp", [])) if by.get("ramp") else None
     if ramps is not None:
         shapely.prepare(ramps)
+    road_zone = unary_union(by.get("road", [])) if by.get("road") else None
+    if road_zone is not None:
+        shapely.prepare(road_zone)
 
     def world(rc):
         return (x0 + (rc[1] + 0.5) * res, y0 + (rc[0] + 0.5) * res)
@@ -299,10 +307,14 @@ def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams 
             mid = seg.interpolate(0.5, normalized=True)
             d_mid = line.project(mid)
             on_ramp = ramps is not None and ramps.contains(mid)
+            ramp_kind = None
+            if on_ramp:
+                at_road = road_zone is not None and road_zone.distance(mid) <= 3.0
+                ramp_kind = "curb" if at_road else "access"
             add_edge(node_at((ax, ay)), node_at((bx, by_)), kind="ramp" if on_ramp else "walkway",
                      slope=_grade(line, d_mid, ground_z, params.grade_window_m),
                      width=width, width_min=width_min, surface="ramp" if on_ramp else "walkway",
-                     source="survey")
+                     source="survey", ramp_kind=ramp_kind)
 
     # Drop fragments too short to be a path.
     for comp in list(nx.connected_components(g)):
@@ -449,19 +461,68 @@ def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams 
                 return new
         return None
 
+    # A centerline that runs along a flight of treads is stairs, whatever the skeleton called it.
+    if treads:
+        zone = unary_union([t.buffer(0.35) for t in treads])
+        shapely.prepare(zone)
+        for u, v, d in list(g.edges(data=True)):
+            if d["kind"] == "walkway" and not d.get("gap"):
+                mid = Point((g.nodes[u]["x"] + g.nodes[v]["x"]) / 2,
+                            (g.nodes[u]["y"] + g.nodes[v]["y"]) / 2)
+                if zone.contains(mid):
+                    d.update(kind="stairs", surface="stairs", source="survey_treads")
+                    rep.stairs_edges += 1
+
+    # --- every mapped ramp is a piece of path of its own. Narrow or short ramps vanish from the
+    # skeleton (they are only a metre or two wide) and the skeleton passes beside the others, so
+    # the ramp's axis is added from its polygon, with the grade measured end to end.
+    for ramp in by.get("ramp", []):
+        for part in getattr(ramp, "geoms", [ramp]):
+            if part.geom_type != "Polygon" or part.area < 2.0:
+                continue
+            axis = _long_axis(part)
+            if axis is None or axis[2] < 2.0:
+                continue
+            e1, e2, length, width = axis
+            near1 = {n for _d, n in nearest_nodes(e1, 6, 1.5)}
+            near2 = {n for _d, n in nearest_nodes(e2, 6, 1.5)}
+            if any(m in near2 for n in near1 for m in g.neighbors(n)):
+                continue                      # the skeleton already runs through it
+            a, b = attach(e1), attach(e2)
+            if a is None or b is None or a == b:
+                continue
+            rise = abs(_mean_z(ground_z, e1) - _mean_z(ground_z, e2))
+            kind = "curb" if road_zone is not None and part.distance(road_zone) <= 1.5 else "access"
+            add_edge(a, b, kind="ramp", slope=rise / max(length, 0.1), width=width,
+                     width_min=width, surface="ramp", source="survey_ramp", ramp_kind=kind,
+                     length=max(length, 1.0))
+            rep.ramp_edges += 1
+
+    from .crossings import USABLE, Crossing
+
+    def add_crossing(c) -> bool:
+        a, b = attach(c.a), attach(c.b)
+        if a is None or b is None or a == b:
+            rep.crosswalks_unsnapped += 1
+            return False
+        line = LineString([c.a, c.b])
+        add_edge(a, b, kind="crosswalk", slope=_grade(line, line.length / 2, ground_z, 6.0),
+                 complexity=0.6, curb_cut=c.curb_cut, surface="crosswalk", source=c.tier,
+                 width=None, tier=c.tier, evidence=", ".join(c.evidence) or None, road=c.road)
+        return True
+
+    given = []
     for coords in crosswalks:
         if len(coords) < 2:
             continue
-        a, b = attach(coords[0]), attach(coords[-1])
-        if a is None or b is None or a == b:
-            rep.crosswalks_unsnapped += 1
-            continue
-        cut = True if has_curb_cut(coords[0]) and has_curb_cut(coords[-1]) else None
-        line = LineString(coords)
-        add_edge(a, b, kind="crosswalk", slope=_grade(line, line.length / 2, ground_z, 6.0),
-                 complexity=0.6, curb_cut=cut, surface="crosswalk", source="osm", width=None)
-        rep.crosswalks += 1
-        rep.crosswalks_with_curb_cuts += int(cut is True)
+        c = Crossing(tuple(coords[0]), tuple(coords[-1]), math.dist(coords[0], coords[-1]),
+                     "marked", ["marked crosswalk"])
+        c.curb_cut_a, c.curb_cut_b = (True if has_curb_cut(e) else None for e in (c.a, c.b))
+        given.append(c)
+    for c in [*given, *[c for c in crossings if c.tier in USABLE]]:
+        if add_crossing(c):
+            rep.crosswalks += 1
+            rep.crosswalks_with_curb_cuts += int(c.curb_cut is True)
 
     # --- breaks in the survey: short links over grass or gravel, always flagged
     blocked = unary_union([gm for c in ("building_slab", "wall", "rock_wall", "water", "road",
@@ -511,6 +572,11 @@ def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams 
         rep.gap_length_m += d
     rep.components_after = nx.number_connected_components(g)
 
+    # Crossings with nothing but geometry behind them: kept, flagged, never used by default.
+    for c in crossings:
+        if c.tier not in USABLE and add_crossing(c):
+            rep.crossing_candidates += 1
+
     graph = CampusGraph(g)
     rep.nodes, rep.edges = g.number_of_nodes(), g.number_of_edges()
     for _, _, d in g.edges(data=True):
@@ -524,6 +590,26 @@ def build_walk_graph(by: dict, rasters, bbox, crosswalks=(), params: WalkParams 
         steep = sum(d["length"] for d in walk_edges if d["slope"] > 0.083)
         rep.steep_share = steep / sum(d["length"] for d in walk_edges)
     return graph, rep
+
+
+def _long_axis(poly):
+    """(end 1, end 2, length, width) of the long axis of a polygon's minimum rotated rectangle:
+    the ends are the middles of the two short sides."""
+    rect = poly.minimum_rotated_rectangle
+    if rect.geom_type != "Polygon":
+        return None
+    c = list(rect.exterior.coords)[:4]
+    sides = [math.dist(c[i], c[(i + 1) % 4]) for i in range(4)]
+    i = 0 if sides[0] >= sides[1] else 1
+    short = [(c[(i + 1) % 4], c[(i + 2) % 4]), (c[(i + 3) % 4], c[i])]
+    mid = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) for a, b in short]
+    return mid[0], mid[1], max(sides[0], sides[1]), min(sides[0], sides[1])
+
+
+def _mean_z(ground_z, p, r: float = 0.75) -> float:
+    """Ground height at p, averaged over a small cross to damp lidar noise."""
+    pts = [(p[0] + dx, p[1] + dy) for dx, dy in ((0, 0), (r, 0), (-r, 0), (0, r), (0, -r))]
+    return float(np.mean([float(ground_z(*q)) for q in pts]))
 
 
 def _bilinear(grid, rasters, x, y):

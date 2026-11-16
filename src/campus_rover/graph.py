@@ -21,7 +21,8 @@ EDGE_DEFAULTS = {
     "closed_reason": None,
 }
 # Optional edge facts a surveyed network carries; saved only when present.
-EXTRA_EDGE_KEYS = ("width", "width_min", "surface", "curb_cut", "gap", "grade_max", "source")
+EXTRA_EDGE_KEYS = ("width", "width_min", "surface", "curb_cut", "gap", "grade_max", "source",
+                   "tier", "evidence", "road", "ramp_kind", "ada")
 
 
 @dataclass(frozen=True)

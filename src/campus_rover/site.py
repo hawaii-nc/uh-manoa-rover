@@ -21,6 +21,7 @@ class PlannerParams:
     allow_stairs: bool = False
     min_width_m: float = 0.0           # edges narrower than this are impassable (0 = ignore)
     require_curb_cut: bool = False     # crossings need a curb cut at both ends
+    allow_candidate_crossings: bool = False   # crossings with only geometry behind them
     # Rover slows in crowds: speed = speed_mps / (1 + density / crowd_halfspeed_density)
     crowd_halfspeed_density: float = 20.0
     w_distance: float = 1.0
@@ -37,6 +38,8 @@ class PlannerParams:
             allow_stairs=bool(data.get("allow_stairs", cls.allow_stairs)),
             min_width_m=float(data.get("min_width_m", cls.min_width_m)),
             require_curb_cut=bool(data.get("require_curb_cut", cls.require_curb_cut)),
+            allow_candidate_crossings=bool(
+                data.get("allow_candidate_crossings", cls.allow_candidate_crossings)),
             crowd_halfspeed_density=float(
                 data.get("crowd_halfspeed_density", cls.crowd_halfspeed_density)
             ),

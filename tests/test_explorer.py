@@ -78,3 +78,22 @@ def test_bundle_has_the_page_the_data_and_small_files(demo, tmp_path):
     assert (tmp_path / "x" / "vendor" / "three.module.min.js").exists()
     data = json.loads(files["data.json"].read_text())
     assert set(data["files"]) == {"ground", "structures", "objects", "agents"}
+
+
+def test_a_crossing_nobody_mapped_becomes_one_check_per_stretch_of_road():
+    from campus_rover.explorer import _leg_checks
+
+    def option(x, road):
+        return {"from": [x, 20.0, 0.0], "to": [x, 20.0, 9.0], "length_m": 9.0, "road": road,
+                "evidence": []}
+
+    leg = {"id": "a>b", "label": "A → B", "stretches": [
+        {"reason": "unverified crossing", "kind": "crosswalk", "from": [0, 0, 0], "to": [0, 0, 9],
+         "length_m": 9.0, "max_grade": 0.01}],
+        "options": [option(0, "Campus Rd"), option(8, "Campus Rd"), option(300, "Campus Rd"),
+                    option(5, "Farrington Rd")]}
+    checks = _leg_checks(leg)
+    assert [c["cat"] for c in checks] == ["crossing-needed"] * 3      # not a "blocked" stretch
+    assert sorted(c["title"].split("crossing of ")[1].split(",")[0] for c in checks) == [
+        "Campus Rd", "Campus Rd", "Farrington Rd"]
+    assert all(c["sev"] == 3 and c["marks"] for c in checks)

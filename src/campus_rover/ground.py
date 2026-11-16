@@ -215,6 +215,99 @@ def add_painted_lines(scene: Scene, lines: list[tuple[list, str]], rasters, bbox
     return n
 
 
+def add_crosswalk_paint(scene: Scene, crossings: list, rasters, bbox, width: float = 3.0,
+                        bar: float = 0.5, gap: float = 0.6) -> int:
+    """Zebra bars across each crossing. `crossings`: [((x, y), (x, y))]. Only crossings the map
+    data itself says are crosswalks (marked by OpenStreetMap or confirmed by you) are given
+    paint: a crossing that is only suggested by ramps or the shape of the road gets none.
+    The bar size is an assumption (a common US pattern), not a measurement."""
+    x0, y0, x1, y1 = bbox
+    mat = scene.material("paint_white", PAINT["white"], roughness=0.7)
+    mesh = scene.mesh("ground", "road_marking", mat)
+    n = 0
+    for a, b in crossings:
+        length = math.dist(a, b)
+        if length < 2.0:
+            continue
+        ux, uy = (b[0] - a[0]) / length, (b[1] - a[1]) / length   # along the walking direction
+        vx, vy = -uy, ux
+        # leave the curb zone clear: bars start 0.6 m into the road
+        t = 0.6
+        while t + bar <= length - 0.6:
+            for s0, s1 in ((t, t + bar),):
+                corners = []
+                for along, side in ((s0, -1), (s1, -1), (s1, 1), (s0, 1)):
+                    x = a[0] + ux * along + vx * side * width / 2
+                    y = a[1] + uy * along + vy * side * width / 2
+                    if not (x0 < x < x1 and y0 < y < y1):
+                        break
+                    corners.append((x, y, float(rasters.ground_z(x, y)) + 0.03))
+                else:
+                    mesh.quad(*corners)
+                    n += 1
+            t += bar + gap
+    return n
+
+
+def add_accessible_stalls(scene: Scene, points: list, rasters, bbox, lines=()) -> int:
+    """A blue square with a white centre (the accessible-parking symbol, simplified) at each
+    surveyed accessible stall. Turned to match the nearest painted stall line."""
+    x0, y0, x1, y1 = bbox
+    blue = scene.mesh("ground", "road_marking", scene.material("paint_blue", PAINT["blue"], 0.7))
+    white = scene.mesh("ground", "road_marking", scene.material("paint_white", PAINT["white"], 0.7))
+    segs = [(p, q) for coords, _c in lines for p, q in zip(coords, coords[1:], strict=False)]
+    n = 0
+    for x, y in points:
+        if not (x0 < x < x1 and y0 < y < y1):
+            continue
+        yaw = 0.0
+        if segs:
+            near = min(segs, key=lambda s: math.dist(((s[0][0] + s[1][0]) / 2,
+                                                       (s[0][1] + s[1][1]) / 2), (x, y)))
+            yaw = math.atan2(near[1][1] - near[0][1], near[1][0] - near[0][0])
+        c, sn = math.cos(yaw), math.sin(yaw)
+        z = float(rasters.ground_z(x, y))
+        for mesh, half, lift in ((blue, 0.6, 0.035), (white, 0.28, 0.04)):
+            pts = [(x + (dx * c - dy * sn) * half, y + (dx * sn + dy * c) * half, z + lift)
+                   for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+            mesh.quad(*pts)
+        n += 1
+    return n
+
+
+# Fence and gate heights are assumptions (UH's layer gives type and line, not height).
+FENCE_HEIGHT_M = {"ChainLinkFence": 1.8, "MetalFence": 1.2, "Gate": 1.5}
+
+
+def add_fences(scene: Scene, fences: list, rasters, bbox) -> int:
+    """Fences and gates standing on the ground. fences: [(coords, ESRI type)]. A chain-link
+    fence is drawn see-through, a gate in its own colour so the openings can be found."""
+    x0, y0, x1, y1 = bbox
+    mats = {
+        "ChainLinkFence": scene.material("fence_chainlink", (0.55, 0.57, 0.58), 0.6, 0.4, 0.35),
+        "MetalFence": scene.material("fence_metal", (0.18, 0.2, 0.22), 0.6, 0.5),
+        "Gate": scene.material("fence_gate", (0.15, 0.45, 0.28), 0.6, 0.3),
+    }
+    n = 0
+    for coords, kind in fences:
+        if kind not in mats:
+            continue
+        mesh = scene.mesh("props", "gate" if kind == "Gate" else "fence", mats[kind])
+        h = FENCE_HEIGHT_M[kind]
+        for p, q in zip(coords, coords[1:], strict=False):
+            if not (x0 < p[0] < x1 and y0 < p[1] < y1 and x0 < q[0] < x1 and y0 < q[1] < y1):
+                continue
+            if math.dist(p, q) < 0.05:
+                continue
+            z0 = float(rasters.ground_z(p[0], p[1]))
+            z1 = float(rasters.ground_z(q[0], q[1]))
+            top_p, top_q = (p[0], p[1], z0 + h), (q[0], q[1], z1 + h)
+            mesh.quad((p[0], p[1], z0), (q[0], q[1], z1), top_q, top_p)
+            mesh.quad((p[0], p[1], z0), top_p, top_q, (q[0], q[1], z1))
+            n += 1
+    return n
+
+
 def coarse_grid(features, rasters, default: int = 0) -> tuple[np.ndarray, np.ndarray]:
     """(class grid, covered mask) at the raster's resolution: 0 grass, 1 walkway, 2 road.
     Used for the surface report, for placing animals on grass, and to know where

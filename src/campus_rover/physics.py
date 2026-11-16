@@ -25,7 +25,7 @@ COLLISION = {
     "walkway": "none", "ramp": "none", "road": "none", "grass": "none", "gravel": "none",
     "dirt": "none", "rock": "none", "planter": "none", "stepstone": "none",
     "sports_court": "none", "building_slab": "none", "stairs": "none", "curb": "none",
-    "wall": "none", "building": "none",
+    "wall": "none", "building": "none", "fence": "none", "gate": "none",
     "bench": "none", "trash_can": "none", "recycling_bin": "none", "bike_rack": "none",
     "skateboard_rack": "none", "bike_share_dock": "none", "emergency_call_box": "none",
     "ev_charger": "none", "mailbox": "none", "bulletin_board": "none", "art_piece": "none",

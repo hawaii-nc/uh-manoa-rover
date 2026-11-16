@@ -55,6 +55,9 @@ class WorldConfig:
     floor_plans: str | None = None      # URL of per-building floor-plan PDFs, with {number}
     plans: str | None = "cache/plans"   # registered floor-plan layouts (campus-rover build-plans)
     ground_lines: dict | None = None    # painted lines: file, colour_field, categories
+    fences: dict | None = None          # fence and gate lines: file, type_field
+    accessible_stalls: str | None = None   # surveyed accessible parking points (geojson)
+    crossings: str | None = None        # crossings found by build-walknet (json)
     lidar_res: float = 0.5
     terrain_res: float = 1.0
     asphalt_max: float = 5500.0         # ground brightness below this = asphalt
@@ -164,6 +167,32 @@ def load_landcover(path: Path, cfg: dict) -> list[tuple[object, str, str | None]
         if not geom.is_empty:
             out.append((geom, cls, paint))
     return out
+
+
+def load_fences(path: Path, cfg: dict) -> list[tuple[list, str]]:
+    """Fence and gate lines -> [(coords, type)]."""
+    out = []
+    for f in json.loads(path.read_text()):
+        kind = str((f.get("properties") or {}).get(cfg.get("type_field", "ESRI_TYPE")))
+        geom = f.get("geometry") or {}
+        parts = geom.get("coordinates") or []
+        if geom.get("type") == "LineString":
+            parts = [parts]
+        out += [([(float(p[0]), float(p[1])) for p in part], kind) for part in parts]
+    return out
+
+
+def fence_polygons(site, cfg: WorldConfig, half_width_m: float = 0.15):
+    """Fences (not gates) as thin polygons, for the network and the traversability labels:
+    [(polygon, "fence", None)]. Gates stay open: they are the places a fence can be passed."""
+    from shapely.geometry import LineString
+
+    fence_cfg = cfg.fences or {}
+    path = site.root / fence_cfg.get("file", "") if fence_cfg else None
+    if not path or not path.exists():
+        return []
+    return [(LineString(c).buffer(half_width_m, cap_style="flat"), "fence", None)
+            for c, kind in load_fences(path, fence_cfg) if kind != "Gate" and len(c) >= 2]
 
 
 def load_ground_lines(path: Path, cfg: dict) -> list[tuple[list, str]]:
@@ -363,9 +392,31 @@ def build_world(site, scenario=None, route_key: str | None = None,
         surface = np.where(covered, grid, surface).astype(np.uint8)
         ground_report = add_landcover(scene, features, rasters, bbox)
         lines_cfg = cfg.ground_lines or {}
-        if lines_cfg and not lite and (site.root / lines_cfg["file"]).exists():
-            ground_report["painted_line_segments"] = add_painted_lines(
-                scene, load_ground_lines(site.root / lines_cfg["file"], lines_cfg), rasters, bbox)
+        stall_lines = []
+        if lines_cfg and (site.root / lines_cfg["file"]).exists():
+            stall_lines = load_ground_lines(site.root / lines_cfg["file"], lines_cfg)
+            if not lite:
+                ground_report["painted_line_segments"] = add_painted_lines(
+                    scene, stall_lines, rasters, bbox)
+        from .ground import add_accessible_stalls, add_crosswalk_paint, add_fences
+
+        stalls = site.root / cfg.accessible_stalls if cfg.accessible_stalls else None
+        if stalls and stalls.exists():
+            pts = [tuple(f["geometry"]["coordinates"][:2])
+                   for f in json.loads(stalls.read_text()).get("features", [])
+                   if (f.get("geometry") or {}).get("type") == "Point"]
+            ground_report["accessible_stalls"] = add_accessible_stalls(
+                scene, pts, rasters, bbox, stall_lines)
+        marked = site.root / cfg.crossings if cfg.crossings else None
+        if marked and marked.exists():
+            found = json.loads(marked.read_text())
+            ground_report["crosswalk_paint"] = add_crosswalk_paint(
+                scene, [(c["a"], c["b"]) for c in found
+                        if c["tier"] in ("marked", "confirmed")], rasters, bbox)
+        fence_cfg = cfg.fences or {}
+        if fence_cfg and (site.root / fence_cfg["file"]).exists():
+            ground_report["fence_segments"] = add_fences(
+                scene, load_fences(site.root / fence_cfg["file"], fence_cfg), rasters, bbox)
     # Lidar-classified terrain fills whatever the land-cover layer does not cover.
     add_terrain(scene, rasters, surface, cfg.terrain_res, skip=covered)
 
@@ -374,29 +425,26 @@ def build_world(site, scenario=None, route_key: str | None = None,
     route_key = route_key or (next(iter(reversed(site.routes))) if site.routes else None)
     if graph is not None and route_key in site.routes:
         try:
-            from .planner import CROWD_AWARE, NoRouteError, RoutePlanner
-            from .schedule import WeekTime
+            from .planner import NoRouteError, RoutePlanner, landmark_goals
 
             planner = RoutePlanner.from_site(site)
-            nodes = site.landmark_nodes(planner.graph)
-            when = WeekTime.parse(scenario.time if scenario else "Mon 09:20")
-            waypoints = [nodes[w] for w in site.routes[route_key].waypoints]
-            try:
-                plan = planner.plan(waypoints, when, CROWD_AWARE)
-                route_xy = [planner.graph.xy(n) for n in plan.nodes]
-            except NoRouteError as e:
-                # No route a rover can drive. The buildings along the intended route still
-                # matter, so use the least-blocked path (a straight line where the map has no
-                # path at all) and say so.
-                progress(f"no passable route ({e}); using the least-blocked path")
-                route_xy = [planner.graph.xy(waypoints[0])]
-                for a, b in zip(waypoints, waypoints[1:], strict=False):
-                    try:
-                        path = planner.blockers(a, b)["path"]
-                        route_xy += [planner.graph.xy(n) for n in path][1:]
-                    except NoRouteError:
-                        route_xy.append(planner.graph.xy(b))
-                route_blocked = True
+            goals = landmark_goals(site, planner)
+            names = site.routes[route_key].waypoints
+            # A building is reached anywhere along its walls. The least-blocked path says where
+            # a rover cannot go; with no blocked stretch it is a route a rover can drive.
+            route_xy, route_blocked = [], False
+            for a, b in zip(names, names[1:], strict=False):
+                try:
+                    info = planner.blockers(goals[a], goals[b])
+                except NoRouteError:
+                    route_blocked = True
+                    continue
+                route_blocked |= bool(info["stretches"])
+                part = [planner.graph.xy(n) for n in info["path"]]
+                route_xy += part if not route_xy else part[1:]
+            if route_blocked:
+                progress("the route needs ground a rover cannot use; "
+                         "showing the least-blocked path")
             if len(route_xy) >= 2:
                 route_line = LineString(route_xy)
         except Exception as e:   # a missing route must not block building the world

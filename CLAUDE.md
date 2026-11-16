@@ -18,7 +18,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
 | Map data in | `arcgis.py` (UH map layers), `floorplans.py` (floor counts from UH Planning PDFs), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
-| Rover network | `walknet.py` (surveyed walkway network), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
+| Rover network | `crossings.py` (crossings by evidence tier), `walknet.py` (surveyed walkway network, ramps as path, stairs by treads), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
 | 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Explorer page | `explorer.py` (split GLBs, `data.json`: network, routes, buildings, things to check) + `viewer/explorer.html` |
 | Older flat export | `usd_export.py`, `viz.py` |
@@ -38,6 +38,8 @@ Before generating any mesh, texture or attribute (building colours, door positio
 
 ## Rules for the rover network
 
+- Crossings carry an evidence tier (`crossings.py`): `confirmed` (you walked it: `sites/<site>/crossings.yaml`), `marked` (OpenStreetMap/Overture draws a crosswalk), `supported` (UH maps a ramp or a gap in the curb at both ends), `candidate` (the two sides only line up across the road). The planner never uses a `candidate`; `blockers` names it as "unverified crossing" and `connecting_options` lists the places to check. Zebra paint is drawn only for `marked` and `confirmed`.
+- A building is reached when the rover can pull up anywhere within 4 m of its walls (`landmark_goals`), not at one node: the single nearest node can sit in a pocket cut off by stairs.
 - Never turn "no evidence" into "no": a crossing's `curb_cut` is `True` only with evidence (a mapped ramp or a gap in the curb), otherwise `None` (unknown), and the planner only refuses `False`.
 - When there is no passable route, say why (`blockers`) and where; do not relax a limit or add a link to make one appear. Each assumption is named in `WalkParams` or `Limits`.
 - Friction values in `physics.py` are placeholders until measured with the real rover; curb height (15 cm) is an assumption because the lidar cannot resolve it.
