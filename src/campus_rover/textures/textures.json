@@ -13,7 +13,7 @@
   "source": "https://polyhaven.com/a/concrete_floor_02",
   "licence": "CC0",
   "tile_m": 3.0,
-  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+  "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint. A slab joint is drawn along two edges of the tile, so joints fall every tile_m (3 m, the slab size in UH photos)."
  },
  "grass": {
   "polyhaven_id": "leafy_grass",
@@ -70,5 +70,12 @@
   "licence": "CC0",
   "tile_m": 2.0,
   "note": "Luminance of the Poly Haven diffuse map, normalised; colour comes from the material tint."
+ },
+ "brick": {
+  "mode": "detail",
+  "tile_m": 1.6,
+  "source": "drawn for this project",
+  "licence": "own work (no third-party content)",
+  "note": "Running-bond pavers, 20 x 10 cm. Used where UH photos show brick pavers (Campus Center plaza); colour comes from the material tint."
  }
 }

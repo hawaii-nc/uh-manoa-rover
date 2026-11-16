@@ -525,8 +525,12 @@ def test_bundled_textures_are_all_cc0_with_a_source():
     info = texture_info()
     assert {"asphalt", "concrete", "grass", "plaster", "bark"} <= set(info)
     for name, entry in info.items():
-        assert (TEXTURE_DIR / f"{name}.jpg").exists() and entry["licence"] == "CC0"
-        assert entry["source"].startswith("https://polyhaven.com/a/")
+        assert (TEXTURE_DIR / f"{name}.jpg").exists()
+        if entry["source"] == "drawn for this project":      # our own work: no third party
+            assert entry["licence"].startswith("own work")
+        else:
+            assert entry["licence"] == "CC0"
+            assert entry["source"].startswith("https://polyhaven.com/a/")
 
 
 # ---- free 3D models placed as shared instances ---------------------------------------

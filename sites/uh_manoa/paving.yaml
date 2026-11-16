@@ -1,0 +1,14 @@
+# Where the walkway is not plain concrete, read from UH's building photos
+# (https://map.hawaii.edu/images/MA/building_images/1055_01.jpg, _03.jpg, _04.jpg).
+# The photos show the extent only roughly, so each region is a circle: check it in the explorer
+# ("Paving") and move or resize it.
+regions:
+  - name: campus_center_plaza
+    material: brick                 # tan running-bond pavers around the stepping-stone lawn
+    center: [622550, 2355630]       # site x, y (EPSG:32604), near the large monkeypod
+    radius_m: 45
+    sources:
+      - https://map.hawaii.edu/images/MA/building_images/1055_01.jpg
+      - https://map.hawaii.edu/images/MA/building_images/1055_03.jpg
+      - https://map.hawaii.edu/images/MA/building_images/1055_04.jpg
+    extent: approximate

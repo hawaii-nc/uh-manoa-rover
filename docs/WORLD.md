@@ -204,6 +204,18 @@ Slope lowers a level: a walkway steeper than 8.3 % is conditional, steeper than 
 - **Fences and gates** (UH fence layer): fences block the network and the traversability labels, gates stay open (conditional). Heights are assumptions (1.8 m chain-link, 1.2 m metal, 1.5 m gate). **Accessible parking** stalls (UH survey) get a blue square with a white centre.
 - **The SVG map.** The uploaded SVG is a flattened print of Esri's topographic basemap (buildings, labels, bus stops, one polygon per park or path, no ramps or crosswalks). Parking lines, stairs, ramps, curbs, fences and street names come from UH's own layers at much higher detail, which is what the model uses.
 
+### Plants, people, light and paving (from the route photos)
+
+[ROUTE_PHOTOS.md](ROUTE_PHOTOS.md) lists what each photo shows. The model takes:
+
+- **Trees** (`vegetation.py`): trunk and limbs in the scene (they collide), crown a shared prototype of leaf cards cut out by a texture drawn in the repo. The shape follows UH's species (coconut, feather and fan palms, monkeypod, banyan/kukui, plumeria, screwpine, paperbark); height, crown radius and trunk width are UH's. Far trees get fewer cards and a plain trunk.
+- **Ground cover**: ti plants, ferns, grass tufts and bushes in UH's planter beds within 100 m of the route.
+- **People** (`agents.py`): head, hair, neck, torso, arms with elbows, legs with knees, shoes (often shorts), backpacks, a walking stride; about 450 triangles each.
+- **Furniture** (`furniture.py`): drum-shade lamp poles at UH's surveyed pole positions, white slotted trash cans.
+- **Ground**: slab joints every 3 m in the concrete texture, running-bond brick pavers inside `paving.yaml` regions, curbs, walls and stairs no longer streaked.
+- **Light** (explorer): a physical sky with the sun where it is over Honolulu at the chosen time, shadows, and a wet-pavement switch (**V**).
+- **Route focus**: `build-explorer --focus 260` keeps what lies within 260 m of the route, so the hosted page's 64 MiB goes to the ground the rover drives on.
+
 ### Terrain and curbs
 
 - **Curb height cannot be measured from this lidar.** Curb by curb, the ground steps up from road to sidewalk by 4.6 cm (middle half −4 to +14 cm) against a noise floor of about ±3.5 cm, from 412 curbs. `campus-rover measure-curbs` reproduces this. Curbs are therefore drawn at the standard 15 cm, as an assumption.

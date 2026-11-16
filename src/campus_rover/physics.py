@@ -34,7 +34,7 @@ COLLISION = {
 # tree -> trunk (bark) only; the leaves are not.
 PART_RULES = {("tree", "bark"): "none"}
 # Shared models (one prototype, many placements) are single compact objects.
-MODEL_COLLISION = {"bench": "convexHull", "street_light": "convexHull"}
+MODEL_COLLISION = {"bench": "convexHull", "street_light": "convexHull", "trash_can": "convexHull"}
 
 # Rubber on surface: (static friction range, roughness in mm range, wet multiplier).
 SURFACES = {

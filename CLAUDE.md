@@ -21,9 +21,10 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Rover network | `crossings.py` (crossings by evidence tier), `walknet.py` (surveyed walkway network, ramps as path, stairs by treads), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
 | 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
 | Explorer page | `explorer.py` (split GLBs, `data.json`: network, routes, buildings, things to check) + `viewer/explorer.html` |
+| Plants and furniture | `vegetation.py` (species-shaped trees, ground cover, leaf textures drawn here), `furniture.py` (lamp, trash can read from photos); route photo notes in `docs/ROUTE_PHOTOS.md` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
-Docs: `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
+Docs: `docs/ROUTE_PHOTOS.md` (what UH's photos of the route show and what the model takes from them), `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
 
 ## Data sourcing rule (set by the owner, mandatory)
 

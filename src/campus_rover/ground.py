@@ -30,6 +30,7 @@ GRID_M = 3.0             # large polygons are cut into pieces this size to follo
 CLASSES = {
     "road":         ("asphalt",   (0.27, 0.27, 0.28), "flat"),
     "walkway":      ("concrete",  (0.80, 0.78, 0.73), "flat"),
+    "walkway:brick": ("brick",    (0.80, 0.60, 0.46), "flat"),
     "ramp":         ("concrete",  (0.78, 0.76, 0.71), "flat"),
     "stairs":       ("concrete",  (0.74, 0.72, 0.68), "stairs"),
     "curb":         ("concrete",  (0.70, 0.69, 0.66), "curb"),
@@ -165,7 +166,7 @@ def add_landcover(scene: Scene, features: list[tuple[object, str, str | None]], 
         if poly.is_empty:
             continue
         how = CLASSES[cls][2]
-        label = "wall" if cls == "rock_wall" else cls
+        label = "wall" if cls == "rock_wall" else cls.split(":")[0]
         texture, tint, _ = CLASSES[cls]
         for part in getattr(poly, "geoms", [poly]):
             if part.geom_type != "Polygon" or part.area < 1e-3:
@@ -173,7 +174,8 @@ def add_landcover(scene: Scene, features: list[tuple[object, str, str | None]], 
             if paint in PAINT:
                 mat = scene.material(f"paint_{paint}", PAINT[paint], roughness=0.7)
             else:
-                mat = scene.material(f"ground_{cls}", tint, roughness=1.0, texture=texture)
+                mat = scene.material(f"ground_{cls.replace(':', '_')}", tint, roughness=1.0,
+                                     texture=texture)
             mesh = scene.mesh("ground", label, mat)
             if how == "flat":
                 drape(mesh, part, rasters.ground_z)
@@ -381,3 +383,35 @@ def curb_reveal(z, valid, x0: float, y0: float, res: float, curbs, road, walk,
 
     return {"sidewalk_minus_road": summary(side), "curb_top_minus_road": summary(top),
             "control_road_minus_road": summary(control)}
+
+
+def load_paving(path) -> list[dict]:
+    """Paving regions (`sites/<site>/paving.yaml`): where the walkway is not plain concrete,
+    each with the photos it is read from."""
+    import yaml
+
+    if path is None or not path.exists():
+        return []
+    return (yaml.safe_load(path.read_text()) or {}).get("regions", [])
+
+
+def apply_paving(features: list, regions: list[dict]) -> list:
+    """Split walkway polygons by paving region: the part inside a region becomes
+    `walkway:<material>`, the rest stays plain walkway."""
+    from shapely.geometry import Point
+
+    out = []
+    zones = [(Point(*r["center"]).buffer(float(r["radius_m"])), r["material"]) for r in regions]
+    for geom, cls, paint in features:
+        if cls != "walkway":
+            out.append((geom, cls, paint))
+            continue
+        rest = geom
+        for zone, material in zones:
+            inside = rest.intersection(zone)
+            if not inside.is_empty:
+                out.append((inside, f"walkway:{material}", paint))
+                rest = rest.difference(zone)
+        if not rest.is_empty:
+            out.append((rest, cls, paint))
+    return out

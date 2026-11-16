@@ -104,3 +104,27 @@ def test_the_route_focus_keeps_only_what_is_near_the_route():
     near = build_world(site, lite=True, focus_m=12.0)
     triangles = lambda w: sum(len(m.arrays()[1]) for m in w.scene.parts.values())   # noqa: E731
     assert triangles(near) < triangles(full)
+
+
+def test_paving_regions_turn_the_walkway_inside_them_into_pavers():
+    from shapely.geometry import box
+
+    from campus_rover.ground import apply_paving, load_paving
+
+    walk = box(0, 0, 100, 4)
+    features = [(walk, "walkway", None), (box(0, 4, 100, 30), "grass", None)]
+    out = apply_paving(features, [{"center": [20, 2], "radius_m": 10, "material": "brick"}])
+    brick = [g for g, c, _ in out if c == "walkway:brick"]
+    plain = [g for g, c, _ in out if c == "walkway"]
+    assert len(brick) == 1 and len(plain) == 1 and not brick[0].intersects(plain[0].buffer(-0.01))
+    assert abs(brick[0].area + plain[0].area - walk.area) < 1e-6          # nothing lost or doubled
+    assert [c for _, c, _ in out if c == "grass"] == ["grass"]
+    assert load_paving(None) == []
+
+
+def test_drawn_furniture_has_the_classes_physics_and_labels_expect():
+    from campus_rover.furniture import drum_lamp, slotted_trash_can
+
+    lamp, can = drum_lamp(), slotted_trash_can()
+    assert lamp.cls == "street_light" and 4.5 < lamp.size[2] < 5.5
+    assert can.cls == "trash_can" and 0.9 < can.size[2] < 1.1 and len(can.prims) == 2

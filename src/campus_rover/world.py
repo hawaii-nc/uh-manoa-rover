@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 
 from .buildgen import generate_building
+from .furniture import drum_lamp, slotted_trash_can
 from .lidar import Rasters, fill_holes
 from .massing import Massing, box_massing, building_massing
 from .meshkit import Scene
@@ -60,6 +61,7 @@ class WorldConfig:
     fences: dict | None = None          # fence and gate lines: file, type_field
     accessible_stalls: str | None = None   # surveyed accessible parking points (geojson)
     crossings: str | None = None        # crossings found by build-walknet (json)
+    paving: str | None = None           # paving regions read from photos (yaml)
     lidar_res: float = 0.5
     terrain_res: float = 1.0
     asphalt_max: float = 5500.0         # ground brightness below this = asphalt
@@ -442,7 +444,11 @@ def build_world(site, scenario=None, route_key: str | None = None,
         planter_polys = [g for g, c, _ in features if c == "planter"]
         grid, covered = coarse_grid(features, rasters)
         surface = np.where(covered, grid, surface).astype(np.uint8)
-        ground_report = add_landcover(scene, features, rasters, bbox)
+        from .ground import apply_paving, load_paving
+
+        paved = apply_paving(features, load_paving(
+            site.root / cfg.paving if cfg.paving else None))
+        ground_report = add_landcover(scene, paved, rasters, bbox)
         lines_cfg = cfg.ground_lines or {}
         stall_lines = []
         if lines_cfg and (site.root / lines_cfg["file"]).exists():
@@ -666,6 +672,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
     n_props: dict[str, int] = {}
     n_models: dict[str, int] = {}
     prop_models = {a.cls: a for a in library.values() if a.cls not in ("car", "street_light")}
+    prop_models.setdefault("trash_can", slotted_trash_can())
     for prop in model.props:
         x, y = prop.xy
         if prop.cls in INDOOR_PROPS or not inside(x, y, 1.0) or inside_any_building(model, (x, y)):
@@ -680,7 +687,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
             n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
     # Street lights only where the campus surveyed one, and only with a real model.
     poles = cfg.light_poles or {}
-    if poles and "street_light" in library and (site.root / poles["file"]).exists():
+    if poles and (site.root / poles["file"]).exists():
+        lamp = drum_lamp()
         keep = set(poles.get("keep") or [])
         for f in json.loads((site.root / poles["file"]).read_text()):
             props, geom = f.get("properties") or {}, f.get("geometry") or {}
@@ -699,7 +707,6 @@ def build_world(site, scenario=None, route_key: str | None = None,
                 n_models["street_light_skipped"] = n_models.get("street_light_skipped", 0) + 1
                 continue
             angle = props.get(poles.get("angle_field", "ANGLE")) or 0.0
-            lamp = library["street_light"]
             scene.place(lamp, "props", x, y, float(rasters.ground_z(x, y)),
                         math.radians(90.0 - float(angle)), scale=height / float(lamp.size[2]))
             n_models["street_light"] = n_models.get("street_light", 0) + 1
@@ -848,6 +855,7 @@ def _int(value) -> int | None:
 
 TEXTURE_DIR = Path(__file__).parent / "textures"
 PLANAR_GROUPS = ("ground", "terrain")     # textured straight down; everything else per face
+VERTICAL_CLASSES = ("curb", "wall", "stairs")   # mostly upright faces: a top-down texture streaks
 
 
 def texture_info() -> dict:
@@ -867,7 +875,7 @@ def part_arrays(scene: Scene, key, tiles: dict, textured: bool = True):
     if texture is None or len(faces) == 0 or not textured:
         return local, faces, None
     tile = float(tiles[texture]["tile_m"])
-    if group.split("/")[0] in PLANAR_GROUPS:
+    if group.split("/")[0] in PLANAR_GROUPS and key[1] not in VERTICAL_CLASSES:
         return local, faces, local[:, :2] / tile
     if group.split("/")[0] == "trees":       # rounded shapes: wrap around, keep vertices shared
         return local, faces, np.c_[(local[:, 0] + local[:, 1]) * 0.7, local[:, 2]] / tile
@@ -949,7 +957,8 @@ def export_glb(scene: Scene, path: Path, lite: bool = False, only=None,
     for key in sorted(scene.parts):
         if only is not None and not only(key):
             continue
-        textured = (not lite) or key[0].split("/")[0] in PLANAR_GROUPS
+        textured = (not lite) or (key[0].split("/")[0] in PLANAR_GROUPS
+                                  and key[1] not in VERTICAL_CLASSES)
         pos, faces, uv = part_arrays(scene, key, tiles, textured)
         if len(faces) == 0:
             continue
