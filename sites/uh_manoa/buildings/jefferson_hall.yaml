@@ -5,16 +5,12 @@ floors: null
 wall: '#eceae4'
 trim: '#d9d7d0'
 glass: '#3f3a36'
-roof: '#bdbcb6'
+roof: null
 windows: curtain
 bay_m: 4.5
 window_ratio: 0.7
 shading: none
 ground_floor: arcade
-entrances:
-- side: W
-  kind: wide
-  covered: true
 confidence: medium
 notes: '1962 by I. M. Pei: white, colonnade at ground level under a deep overhanging roof.'
 sources:

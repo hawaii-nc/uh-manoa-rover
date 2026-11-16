@@ -5,13 +5,12 @@ floors: 1
 wall: '#7c7f66'
 trim: '#e6e4da'
 glass: '#4b5553'
-roof: '#9a9a94'
+roof: null
 windows: grid
 bay_m: 3.2
 window_ratio: 0.4
 shading: none
 ground_floor: solid
-entrances: []
 confidence: medium
 notes: '1928 engineering-quad remnant: olive walls, white panels, tall windows.'
 sources:

@@ -1,0 +1,18 @@
+id: hale_h_l_wai_b
+name: Hale Hālāwai
+tier: C
+floors: 1
+wall: '#e4dcc0'
+trim: '#d0c8ac'
+glass: '#3c3a36'
+roof: '#6f6a72'
+windows: grid
+bay_m: 3.5
+window_ratio: 0.4
+shading: none
+ground_floor: arcade
+confidence: medium
+notes: 'Part of Hale Hālāwai: cream pavilion, columned porch, grey hip roof.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1253_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

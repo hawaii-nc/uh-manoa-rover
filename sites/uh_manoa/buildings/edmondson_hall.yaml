@@ -5,16 +5,12 @@ floors: 4
 wall: '#c9c9c4'
 trim: '#b6b6b0'
 glass: '#333b40'
-roof: '#8c8c87'
+roof: null
 windows: grid
 bay_m: 4.0
 window_ratio: 0.5
 shading: lanai
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: medium
 notes: 1962. Light grey panels with deep recessed balconies.
 sources:

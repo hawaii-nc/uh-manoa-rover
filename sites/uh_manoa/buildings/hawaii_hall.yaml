@@ -5,16 +5,12 @@ floors: 3
 wall: '#e3dfc0'
 trim: '#d2ceae'
 glass: '#55604f'
-roof: '#8f8c80'
+roof: null
 windows: grid
 bay_m: 3.0
 window_ratio: 0.45
 shading: none
 ground_floor: solid
-entrances:
-- side: E
-  kind: wide
-  covered: true
 confidence: high
 notes: '1912 neoclassical main building: cream walls, columned portico facing Varney Circle.'
 sources:

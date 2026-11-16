@@ -1,0 +1,18 @@
+id: everly_hall
+name: Everly Hall
+tier: C
+floors: 2
+wall: '#c2beb4'
+trim: '#aeaaa0'
+glass: '#30383c'
+roof: null
+windows: slit
+bay_m: 2.0
+window_ratio: 0.35
+shading: fins
+ground_floor: solid
+confidence: medium
+notes: 1966. Grey concrete, two floors of tall narrow windows between vertical fins.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1081_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

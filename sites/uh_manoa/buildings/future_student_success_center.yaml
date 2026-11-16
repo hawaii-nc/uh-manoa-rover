@@ -5,13 +5,12 @@ floors: 4
 wall: '#d9cdb6'
 trim: '#c9a98a'
 glass: '#34424a'
-roof: '#8f8b80'
+roof: null
 windows: ribbon
 bay_m: 4.0
 window_ratio: 0.7
 shading: eyebrows
 ground_floor: arcade
-entrances: []
 confidence: medium
 notes: '1956, the former Sinclair Library: sandstone-faced columns, louvred window bands, open ground
   floor.'

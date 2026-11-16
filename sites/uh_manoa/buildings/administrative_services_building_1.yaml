@@ -5,13 +5,12 @@ floors: 1
 wall: '#a89f8c'
 trim: '#4a3f35'
 glass: '#2f3538'
-roof: '#4f463c'
+roof: null
 windows: ribbon
 bay_m: 3.5
 window_ratio: 0.6
 shading: none
 ground_floor: arcade
-entrances: []
 confidence: low
 notes: 1952. Low building, dark roof edge, lava-rock wall.
 sources:

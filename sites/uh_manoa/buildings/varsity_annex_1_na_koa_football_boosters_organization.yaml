@@ -1,0 +1,18 @@
+id: varsity_annex_1_na_koa_football_boosters_organization
+name: Varsity Annex 1 - Na Koa Football Boosters Organization
+tier: C
+floors: 1
+wall: '#b5a98a'
+trim: '#a19576'
+glass: '#3a4248'
+roof: '#8a6f55'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.35
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Tan raised wooden building under a brown roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1152E_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

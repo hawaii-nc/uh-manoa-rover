@@ -15,12 +15,22 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 |---|---|
 | Sites and config | `site.py`, `sites/<name>/site.yaml`, `layers.yaml`, `schedule.yaml` |
 | Route planner | `graph.py`, `crowd.py`, `schedule.py`, `planner.py` |
-| Map data in | `arcgis.py` (UH map layers), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
+| Map data in | `arcgis.py` (UH map layers), `opendata.py` (Honolulu, State, PacIOOS: data and checks), `overture.py` (walkways, footprints), `osm.py`, `lidar.py` |
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
 | 3D world | `world.py` (assemble + export), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `agents.py`, `meshkit.py`, `viewer/` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
 Docs: `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
+
+## Data sourcing rule (set by the owner, mandatory)
+
+Before generating any mesh, texture or attribute (building colours, door positions, pathway shapes), query real data. Do not guess.
+
+- Sources to query: Honolulu Open Geospatial Data Hub (Building Footprints (CCH), zoning), State of Hawaiʻi GIS (lidar, 100 ft contours), UH Mānoa campus map and MAGIS (names, abbreviations, layouts), PacIOOS GeoServer (regional boundaries). `opendata.py` and `fetch-world-data` do this.
+- Never derive a style sheet, roof type or placement from the year built. A corridor building with no evidence is drawn as plain grey massing (`unverified_style`), with no windows or doors.
+- Procedural looks (`background_style`) are only for background buildings more than `tier_b_m` (120 m) from the route.
+- Every style sheet cites its source. Doors are placed only at mapped door points.
+- `world.json` records each source with its retrieval date and the cross-checks; keep that true.
 
 ## Rules that matter
 

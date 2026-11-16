@@ -5,13 +5,12 @@ floors: 3
 wall: '#e1dccb'
 trim: '#6e3b3b'
 glass: '#2f363a'
-roof: '#8c8a84'
+roof: null
 windows: ribbon
 bay_m: 3.5
 window_ratio: 0.6
 shading: eyebrows
 ground_floor: solid
-entrances: []
 confidence: medium
 notes: '1957 dormitory: cream with maroon accents and dark window bands.'
 sources:

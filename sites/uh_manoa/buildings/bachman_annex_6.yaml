@@ -1,0 +1,18 @@
+id: bachman_annex_6
+name: Bachman Annex 6
+tier: C
+floors: 1
+wall: '#d9cfb2'
+trim: '#c5bb9e'
+glass: '#3f4748'
+roof: '#8a7a6a'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.35
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Single-storey tan cottage under a brown hip roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1024_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

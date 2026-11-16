@@ -69,6 +69,11 @@ world:
   rasters: cache/rasters_corridor.npz
   segments: cache/raw/segments.json
   background_buildings: cache/raw/background_buildings.json
+  # Official open data used for footprints, heights and checks (see docs/WORLD.md).
+  open_data: cache/opendata
+  # The lidar heights sit 21.8 m above Honolulu's 5 ft contours and the State's
+  # 100 ft contours (measured at 3,837 contour points), so they are shifted to match.
+  vertical_shift_m: -21.8
   # 2022-2023 NOAA/USGS Hawaiʻi lidar (public domain), the six 500 m tiles over the corridor.
   lidar_tiles:
     - https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid12b/10331/blk_2/20230127_4QFJ220550.copc.laz

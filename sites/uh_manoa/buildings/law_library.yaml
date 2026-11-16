@@ -1,0 +1,18 @@
+id: law_library
+name: Law Library
+tier: C
+floors: 1
+wall: '#b0aa9c'
+trim: '#9c9688'
+glass: '#3a4a50'
+roof: null
+windows: curtain
+bay_m: 4.0
+window_ratio: 0.6
+shading: none
+ground_floor: solid
+confidence: low
+notes: Concrete with a glazed entry; the photo shows only the entrance stair.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1143_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

@@ -1,0 +1,18 @@
+id: music_complex_phase_i
+name: Music Complex Phase I
+tier: C
+floors: 1
+wall: '#cfccc4'
+trim: '#bbb8b0'
+glass: '#3a4248'
+roof: null
+windows: none
+bay_m: 4.0
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Low white-grey concrete with slanted fins and a mural; blank walls.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1093_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

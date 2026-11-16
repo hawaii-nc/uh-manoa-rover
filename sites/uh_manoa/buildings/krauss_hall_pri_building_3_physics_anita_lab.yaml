@@ -1,0 +1,18 @@
+id: krauss_hall_pri_building_3_physics_anita_lab
+name: Krauss Hall Pri Building 3 - Physics Anita Lab
+tier: C
+floors: 1
+wall: '#d8cfae'
+trim: '#c4bb9a'
+glass: '#3a4248'
+roof: null
+windows: slit
+bay_m: 4.0
+window_ratio: 0.2
+shading: none
+ground_floor: solid
+confidence: low
+notes: Beige panelled single storey with few openings.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1046D_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

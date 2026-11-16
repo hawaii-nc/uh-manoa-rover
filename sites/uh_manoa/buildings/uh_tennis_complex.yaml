@@ -1,0 +1,19 @@
+id: uh_tennis_complex
+name: Uh Tennis Complex
+tier: C
+floors: null
+wall: '#2f5a45'
+trim: '#2f5a45'
+glass: '#3a4248'
+roof: null
+windows: none
+bay_m: 4.0
+window_ratio: 0.5
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Outdoor tennis courts with fences. Not a building.
+solid: false
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1116E_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

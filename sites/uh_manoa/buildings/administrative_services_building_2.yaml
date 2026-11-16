@@ -5,13 +5,12 @@ floors: 1
 wall: '#c9b79c'
 trim: '#4a4038'
 glass: '#353a3c'
-roof: '#4f463c'
+roof: null
 windows: grid
 bay_m: 3.5
 window_ratio: 0.3
 shading: none
 ground_floor: solid
-entrances: []
 confidence: low
 notes: 1972. Small tan building with a dark roof edge.
 sources:

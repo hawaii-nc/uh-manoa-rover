@@ -5,13 +5,12 @@ floors: 3
 wall: '#bdb9ae'
 trim: '#aaa69b'
 glass: '#41525a'
-roof: '#8a8880'
+roof: null
 windows: ribbon
 bay_m: 4.0
 window_ratio: 0.7
 shading: eyebrows
 ground_floor: arcade
-entrances: []
 confidence: medium
 notes: 1975. Low grey concrete with glass gallery walls around a garden court.
 sources:

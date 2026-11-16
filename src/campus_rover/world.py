@@ -26,7 +26,7 @@ from .lidar import Rasters, fill_holes
 from .massing import Massing, box_massing, building_massing
 from .meshkit import Scene
 from .overture import ROAD_WIDTH_M
-from .style import Style, auto_style, load_styles, slug
+from .style import Style, background_style, load_styles, slug, unverified_style
 
 GRASS, WALKWAY, ROAD = 0, 1, 2
 SURFACE_NAMES = {GRASS: "grass", WALKWAY: "walkway", ROAD: "road"}
@@ -45,6 +45,8 @@ class WorldConfig:
     segments: str | None = None         # road/path segments (.json), relative to the site
     background_buildings: str | None = None   # extra footprints (.json) for off-campus buildings
     lidar_tiles: list[str] = field(default_factory=list)   # LAZ tile URLs covering the corridor
+    vertical_shift_m: float = 0.0       # added to lidar heights to match official contours
+    open_data: str | None = None        # folder of official open data (see opendata.py)
     lidar_res: float = 0.5
     terrain_res: float = 1.0
     asphalt_max: float = 5500.0         # ground brightness below this = asphalt
@@ -272,6 +274,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
     raster_path = site.root / cfg.rasters if cfg.rasters else None
     has_lidar = bool(raster_path and raster_path.exists())
     rasters = Rasters.load(raster_path) if has_lidar else flat_rasters(bbox)
+    if has_lidar and cfg.vertical_shift_m:
+        rasters.shift_z(cfg.vertical_shift_m)
     bbox = rasters.bounds
     x0, y0, x1, y1 = bbox
 
@@ -319,7 +323,49 @@ def build_world(site, scenario=None, route_key: str | None = None,
 
     progress("buildings")
     styles = load_styles(site.root / cfg.styles)
-    buildings_report, used_ids = [], set()
+    roof_scale = None
+    if has_lidar and rasters.roof_intensity is not None:
+        roof_scale = float(np.nanpercentile(rasters.roof_intensity, 97))
+    doors = [e.xy for e in model.entrances if e.cls == "automatic_door"]
+    buildings_report, used_ids, open_areas = [], set(), []
+
+    def near_route(poly) -> float | None:
+        return None if route_line is None else float(route_line.distance(poly))
+
+    def add_building(poly, bid, name, default_height, props, campus: bool) -> None:
+        c = poly.centroid
+        if has_lidar:
+            massing = building_massing(poly, rasters, default_height=default_height)
+        else:
+            massing = box_massing(poly, float(rasters.ground_z(c.x, c.y)), default_height)
+        dist = near_route(poly)
+        tier = "C" if dist is None else "A" if dist <= cfg.tier_a_m else \
+            "B" if dist <= cfg.tier_b_m else "C"
+        style = styles.get(bid)
+        if style is not None and not style.solid:
+            open_areas.append(bid)      # courts, amphitheatres: the terrain already has them
+            return
+        if style is not None:
+            source = "sheet"
+        elif tier == "C" or route_line is None:
+            # Far from the route: generic background is allowed.
+            style, source = background_style(bid, name, poly.area, massing.height), "procedural"
+        else:
+            # In the rover's corridor nothing is guessed: plain measured shape.
+            style, source = unverified_style(bid, name), "unverified"
+        group = f"buildings/{bid}" if campus else "buildings/background"
+        near = [d for d in doors if poly.distance(_point(d)) <= 8.0] if source == "sheet" else []
+        info = generate_building(scene, group, massing, style, door_points=near,
+                                 roof_color=roof_grey(poly, rasters, roof_scale))
+        buildings_report.append({
+            "id": bid, "name": name, "tier": tier, "style_source": source, "campus": campus,
+            "abbrev": props.get("ABBREV2") or props.get("ABBREV1"),
+            "route_distance_m": None if dist is None else round(dist, 1),
+            "height_m": round(massing.height, 1), "base_z": round(massing.base_z, 1),
+            "year": _int(props.get("YEAR_BUILT")), "footprint_m2": round(poly.area), **info,
+        })
+
+    campus_polys = []
     for b in model.buildings:
         poly = building_polygon(b)
         c = poly.centroid
@@ -329,55 +375,54 @@ def build_world(site, scenario=None, route_key: str | None = None,
         while bid in used_ids:
             bid += "_b"
         used_ids.add(bid)
-        if has_lidar:
-            massing = building_massing(poly, rasters, default_height=b.height_m)
-        else:
-            massing = box_massing(poly, float(rasters.ground_z(c.x, c.y)), b.height_m)
-        year = _int(b.props.get("YEAR_BUILT") or b.props.get("year_built"))
-        dist = route_line.distance(poly) if route_line is not None else None
-        tier = "C" if dist is None else "A" if dist <= cfg.tier_a_m else \
-            "B" if dist <= cfg.tier_b_m else "C"
-        style = styles.get(bid)
-        researched = style is not None
-        if style is None:
-            style = auto_style(bid, b.name or "", year, poly.area, massing.height, massing.pitched)
-        info = generate_building(scene, f"buildings/{bid}", massing, style)
-        buildings_report.append({
-            "id": bid, "name": b.name, "tier": tier, "researched": researched,
-            "route_distance_m": None if dist is None else round(dist, 1),
-            "height_m": round(massing.height, 1), "base_z": round(massing.base_z, 1),
-            "year": year, "footprint_m2": round(poly.area), **info,
-        })
+        before = len(buildings_report)
+        add_building(poly, bid, b.name or "", b.height_m, b.props, campus=True)
+        if len(buildings_report) > before:
+            campus_polys.append(poly)
 
-    # Buildings the campus map doesn't cover (neighbours, off-campus): plain background.
+    # Buildings the campus map doesn't cover: official city footprints first, then
+    # OpenStreetMap ones the city layer lacks. Their shapes are measured like the rest.
+    from shapely import STRtree
+    from shapely.geometry import Polygon
+    from shapely.geometry import shape as to_shape
+
+    extra: list[tuple[object, str, float]] = []
+    cch_path = site.root / cfg.open_data / "cch_footprints.json" if cfg.open_data else None
+    cch_heights: list[tuple[object, float]] = []
+    if cch_path and cch_path.exists():
+        from .opendata import footprint_height
+
+        for f in json.loads(cch_path.read_text()):
+            if not f.get("geometry"):
+                continue
+            geom = to_shape(f["geometry"]).buffer(0)
+            height = footprint_height(f.get("properties") or {})
+            if height:
+                cch_heights.append((geom, height))
+            for poly in getattr(geom, "geoms", [geom]):
+                extra.append((poly, "cch", height or 6.0))
     extra_path = site.root / cfg.background_buildings if cfg.background_buildings else None
-    n_background = 0
     if extra_path and extra_path.exists():
-        from shapely import STRtree
-        from shapely.geometry import Polygon
-
-        known = [building_polygon(b) for b in model.buildings]
-        tree = STRtree(known)
-        for i, item in enumerate(json.loads(extra_path.read_text())):
+        for item in json.loads(extra_path.read_text()):
             poly = Polygon(item["rings"][0], item["rings"][1:])
-            poly = poly if poly.is_valid else poly.buffer(0)
-            c = poly.centroid
-            if poly.geom_type != "Polygon" or poly.area < 12 or not inside(c.x, c.y, 3.0):
-                continue
-            if any(known[j].intersection(poly).area > 0.2 * poly.area
-                   for j in tree.query(poly)):
-                continue
-            massing = building_massing(poly, rasters, default_height=item.get("height") or 6.0) \
-                if has_lidar else box_massing(poly, 0.0, item.get("height") or 6.0)
-            style = auto_style(f"bg_{i}", item.get("name") or "", None, poly.area,
-                               massing.height, massing.pitched)
-            style.wall = ["#d9d2c0", "#c8c2b4", "#e2dccb", "#bfb8a8"][i % 4]
-            style.roof = ["#77736c", "#8a6f5c", "#6d7478"][i % 3]
-            generate_building(scene, "buildings/background", massing, style)
-            n_background += 1
+            extra.append((poly if poly.is_valid else poly.buffer(0), "osm",
+                          item.get("height") or 6.0))
+    n_background = 0
+    placed = list(campus_polys)
+    for i, (poly, origin, height) in enumerate(extra):
+        c = poly.centroid
+        if poly.geom_type != "Polygon" or poly.area < 12 or not inside(c.x, c.y, 3.0):
+            continue
+        tree = STRtree(placed)
+        if any(placed[int(k)].intersection(poly).area > 0.2 * poly.area for k in tree.query(poly)):
+            continue
+        placed.append(poly)
+        add_building(poly, f"{origin}_{i}", "", height, {}, campus=False)
+        n_background += 1
 
     progress("trees and props")
     n_trees = 0
+    tree_size = {"surveyed": 0, "lidar": 0, "default": 0}   # where each tree's height came from
     for t in model.trees:
         x, y = t.xy
         if not inside(x, y, 1.0):
@@ -385,6 +430,7 @@ def build_world(site, scenario=None, route_key: str | None = None,
         p = t.props
         z = float(rasters.ground_z(x, y))
         height = p.get("height_m")
+        tree_size["surveyed" if height else "lidar" if has_lidar else "default"] += 1
         if not height and has_lidar:
             r, c = rasters.cell(x, y)
             top = rasters.dsm_veg[max(r - 2, 0):r + 3, max(c - 2, 0):c + 3]
@@ -429,14 +475,82 @@ def build_world(site, scenario=None, route_key: str | None = None,
         "elevation_m": [round(float(np.nanmin(rasters.dtm)), 1),
                         round(float(np.nanmax(rasters.dtm)), 1)],
         "surface_share": share, "background_buildings": n_background, "trees": n_trees,
+        "tree_height_source": tree_size,
         "props": n_props, "agents": agent_counts,
         "route": {"key": route_key, "length_m": round(route_line.length) if route_line else None,
                   "xy": [[round(x, 2), round(y, 2)] for x, y in route_xy]},
+        "open_areas": open_areas,
+        "checks": _checks(site, cfg, rasters, buildings_report, campus_polys, cch_heights),
+        "sources": _sources(site, cfg, has_lidar),
         "buildings": sorted(buildings_report,
                             key=lambda r: (r["tier"], r["route_distance_m"] or 0)),
         "mesh": scene.stats(),
     }
     return World(scene, agents_scene, rasters, surface, bbox, report)
+
+
+def _point(xy):
+    from shapely.geometry import Point
+
+    return Point(xy)
+
+
+def roof_grey(poly, rasters: Rasters, scale: float | None) -> str | None:
+    """Neutral grey whose lightness is the measured brightness of the roof's lidar
+    returns. Hue is not measured, so none is invented."""
+    import shapely
+
+    if scale is None or rasters.roof_intensity is None:
+        return None
+    minx, miny, maxx, maxy = poly.bounds
+    r0, c0 = rasters.cell(minx, miny)
+    r1, c1 = rasters.cell(maxx, maxy)
+    window = rasters.roof_intensity[r0:r1 + 1, c0:c1 + 1]
+    xs = rasters.x0 + (np.arange(c0, c1 + 1) + 0.5) * rasters.res
+    ys = rasters.y0 + (np.arange(r0, r1 + 1) + 0.5) * rasters.res
+    gx, gy = np.meshgrid(xs, ys)
+    values = window[shapely.contains_xy(poly, gx, gy) & np.isfinite(window)]
+    if len(values) < 4:
+        return None
+    level = 0.25 + 0.55 * float(np.clip(np.median(values) / scale, 0, 1))
+    v = round(level * 255)
+    return f"#{v:02x}{v:02x}{v:02x}"
+
+
+def _checks(site, cfg, rasters, report, polys, cch_heights) -> dict:
+    """Compare the world with official data it was not built from."""
+    folder = site.root / cfg.open_data if cfg.open_data else None
+    if folder is None or not folder.exists():
+        return {}
+    from .opendata import FT, contour_check, contour_lines, height_check
+
+    out = {"vertical_shift_applied_m": cfg.vertical_shift_m}
+    for key, fld in (("cch_contours_5ft", "ELEVATION"), ("state_contours_100ft", "contour")):
+        path = folder / f"{key}.json"
+        if path.exists():
+            out[key] = contour_check(rasters, contour_lines(json.loads(path.read_text()), fld, FT))
+    campus = [r for r in report if r["campus"]]
+    out["heights_vs_cch"] = height_check(
+        [(p, r["height_m"]) for p, r in zip(polys, campus, strict=False)], cch_heights)
+    from .opendata import region_summary
+
+    out["region"] = region_summary(folder)
+    return out
+
+
+def _sources(site, cfg, has_lidar: bool) -> dict:
+    """Where every part of the world came from."""
+    out = {}
+    folder = site.root / cfg.open_data if cfg.open_data else None
+    if folder is not None and (folder / "provenance.json").exists():
+        out.update(json.loads((folder / "provenance.json").read_text()))
+    if has_lidar:
+        out["lidar"] = {"title": "Airborne lidar point cloud", "tiles": cfg.lidar_tiles}
+    out["campus_map"] = {"title": "Campus map layers (buildings, trees, props, doors)",
+                         "file": "layers.yaml"}
+    out["style_sheets"] = {"title": "Building style sheets, one cited photo each",
+                           "folder": cfg.styles}
+    return out
 
 
 def _int(value) -> int | None:

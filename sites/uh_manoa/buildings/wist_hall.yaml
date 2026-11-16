@@ -1,0 +1,18 @@
+id: wist_hall
+name: Wist Hall
+tier: C
+floors: 2
+wall: '#ecebe4'
+trim: '#d8d7d0'
+glass: '#3f4748'
+roof: '#8a5a48'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.4
+shading: none
+ground_floor: solid
+confidence: medium
+notes: 1930. White walls, red-brown tile roof, arched entry.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1039_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

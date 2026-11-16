@@ -1,0 +1,19 @@
+id: center_for_korean_studies
+name: Center For Korean Studies
+tier: C
+floors: 2
+wall: '#2f7f72'
+trim: '#b0452f'
+glass: '#2b3a3a'
+roof: '#55595c'
+windows: grid
+bay_m: 3.0
+window_ratio: 0.6
+shading: none
+ground_floor: solid
+confidence: medium
+notes: '1980 building in Korean palace style: green lattice walls, red columns and trim, dark tiled upturned
+  roof.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1076_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

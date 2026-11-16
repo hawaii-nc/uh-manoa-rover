@@ -1,0 +1,18 @@
+id: krauss_annex_19_environmental_center
+name: Krauss Annex 19 - Environmental Center
+tier: C
+floors: 1
+wall: '#e0d9c2'
+trim: '#ccc5ae'
+glass: '#4a5052'
+roof: null
+windows: grid
+bay_m: 3.2
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Raised cream wooden annex with a ramp.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1046T_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

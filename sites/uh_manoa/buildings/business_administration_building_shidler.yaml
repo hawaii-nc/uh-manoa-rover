@@ -5,13 +5,12 @@ floors: null
 wall: '#b7b4ad'
 trim: '#a3a099'
 glass: '#30373b'
-roof: '#8a8884'
+roof: null
 windows: slit
 bay_m: 4.0
 window_ratio: 0.25
 shading: none
 ground_floor: solid
-entrances: []
 confidence: medium
 notes: '1971 exposed concrete: large blank walls, few narrow windows.'
 sources:

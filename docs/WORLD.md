@@ -12,18 +12,47 @@
 
 The plan and the reasoning behind it are in [CAMPUS_3D_PLAN.md](CAMPUS_3D_PLAN.md).
 
+## The sourcing rule: nothing in the corridor is guessed
+
+Every shape, position and colour near the route comes from a named data source. Where there is no evidence, the world shows less instead of inventing something.
+
+| Part | Source | If there is no data |
+|---|---|---|
+| Terrain | 2022–2023 NOAA/USGS lidar, ground points | Site is built flat and says so |
+| Road / walkway / grass | Lidar brightness plus mapped roads | Left as grass |
+| Building footprints | UH campus map; City and County of Honolulu footprints; OpenStreetMap | Building is not built |
+| Building shape and roof type | Lidar roof heights inside each footprint | One box at the mapped height |
+| Wall colour, windows, shading, ground floor | A style sheet citing UH's photo of that building | **Plain grey shape, no windows** (`unverified`) |
+| Roof colour | The photo, when it shows the roof; otherwise a grey whose lightness is the measured lidar brightness of that roof | Neutral grey |
+| Doors | UH's Automatic Doors layer | **No door** |
+| Trees | UH tree survey: position, species, height, crown | Height from the lidar canopy |
+| Props | UH campus map layers | Not placed |
+
+Generic "background" buildings are only allowed more than 120 m from the route. The year a building was built is never used to guess its look.
+
+**What still involves judgement.** Wall colours and window patterns are read off one photo per building by eye. Floor counts come from the photo where it shows them, and otherwise from the measured height. Prop shapes are generic and their facing is arbitrary. People and vehicles are synthetic by design.
+
+### Checks against official data the world was not built from
+
+| Check | Result |
+|---|---|
+| Lidar ground vs. Honolulu 5 ft contours (3,837 points) | Median difference 0.46 m, 90 % within 1.64 m |
+| Lidar ground vs. State 100 ft contour (207 points) | Median difference 0.58 m |
+| Lidar building heights vs. Honolulu footprint heights (78 buildings) | Median difference 2.2 m; 62 % within 3 m |
+
+The contour check found that the lidar files measure height from a different reference: they sat a steady 21.8 m above both contour sets. `world.vertical_shift_m: -21.8` in `site.yaml` corrects that. The building-height gap is expected: Honolulu's figure is highest point minus lowest ground, ours is the main roof above typical ground.
+
 ## What is in it
 
-| Part | Where it comes from | Count (UH corridor) |
-|---|---|---|
-| Terrain, 25–70 m elevation | 2022–2023 NOAA/USGS lidar, ground points | 1 m grid |
-| Ground type: road, walkway, grass | Lidar brightness (asphalt is dark, grass is bright) plus mapped roads | every cell |
-| Building shapes: towers, podiums, courtyards, pitched roofs | UH campus map footprints + lidar roof heights | 97 UH buildings |
-| Building looks: colours, windows, sun shading, ground floor, doors | Style sheets in `sites/uh_manoa/buildings/` | 50 researched, 47 guessed from the year built |
-| Off-campus buildings | Overture Maps footprints + lidar heights | background only |
-| Trees, with real height, crown width and palm vs. broadleaf | UH's tree survey | 2,057 |
-| Benches, bins, call boxes, bike racks and more | UH campus map layers | 752 |
-| People, bikes, skateboards, cars, carts, chickens, cats | Crowd model + scenario file | 1,335 at a Monday class change |
+| Part | Count (UH corridor) |
+|---|---|
+| Campus buildings, each with a photo-based style sheet | 95 |
+| Other buildings from city and OSM footprints | 64: 13 near the route as plain grey, 51 far background |
+| Open areas left to the terrain (tennis courts, amphitheatre) | 2 |
+| Doors | 16, on 8 buildings |
+| Trees | 2,057: 1,229 with surveyed height, 828 with lidar height |
+| Benches, bins, call boxes, bike racks and more | 752 |
+| People, bikes, skateboards, cars, carts, chickens, cats | 1,335 at a Monday class change |
 
 Every mesh has a semantic label: `road`, `walkway`, `grass`, `building`, `window`, `door`, `roof`, `tree`, `person`, `bicycle`, `skateboard`, `car`, `cart`, `chicken`, `cat`, and one per prop type (`bench`, `trash_can`, `emergency_call_box`, ...).
 
@@ -49,8 +78,8 @@ campus-rover build-world --site uh_manoa --out out/uh_manoa --scenario class_cha
 campus-rover view --dir out/uh_manoa
 ```
 
-- `fetch-layers` downloads the UH campus map layers (buildings, trees, props).
-- `fetch-world-data` downloads the walkways, roads, off-campus footprints and six lidar tiles (about 315 MB), then grids the lidar. Downloads go to `sites/uh_manoa/cache/`, which is not in git.
+- `fetch-layers` downloads the UH campus map layers (buildings, trees, props, doors).
+- `fetch-world-data` downloads walkways and roads, six lidar tiles (about 315 MB), and the official open data listed below. Downloads go to `sites/uh_manoa/cache/`, which is not in git.
 - `build-world` takes about 30 seconds and writes:
 
 | File | For |
@@ -58,10 +87,10 @@ campus-rover view --dir out/uh_manoa
 | `world.usdc` | **Isaac Sim.** Z up, meters, labels, collision, preview materials. |
 | `agents_<scenario>.usdc` | People and vehicles for one scenario, as a separate layer. |
 | `world.glb`, `agents_<scenario>.glb` | The browser viewer, Blender, anything that reads glTF. |
-| `world.json` | Report: every building with its tier, height and floors; the route; counts. |
+| `world.json` | Report: each building's tier, height, floors and where its look came from; the checks above; every source with its retrieval date. |
 | `index.html` | The viewer: fly around, ride the route at rover height, switch to label colours. |
 
-The demo campus builds with no downloads: `campus-rover build-world --site demo_campus --out out/demo --scenario test`. It has no lidar, so the ground is flat and buildings are boxes.
+The demo campus builds with no downloads: `campus-rover build-world --site demo_campus --out out/demo --scenario test`. It is an invented site with no lidar, so the ground is flat and buildings are boxes.
 
 ### In Isaac Sim
 
@@ -81,17 +110,16 @@ The time drives the same crowd model the route planner uses, so walkways near le
 
 ## Building style sheets
 
-One file per building, about 20 lines, checked by code:
+One file per building, about 20 lines, checked by code. Every sheet must cite its source.
 
 ```yaml
 id: holmes_hall
-tier: A
 floors: 5
 wall: '#b9b4aa'
+roof: null              # not visible in the photo: lightness is measured from lidar
 windows: grid
 shading: lanai          # open-air corridors
 ground_floor: arcade
-entrances: [{side: N, kind: wide, covered: true}]
 confidence: medium
 sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 ```
@@ -99,24 +127,32 @@ sources: [https://map.hawaii.edu/images/MA/building_images/1163_01.jpg, ...]
 - `windows`: `grid`, `ribbon`, `curtain`, `slit` or `none`
 - `shading`: `none`, `fins`, `eyebrows` or `lanai`
 - `ground_floor`: `solid`, `arcade` or `storefront`
-- **Tier A** is within 45 m of the route, **B** within 120 m, **C** is background.
+- `solid: false` marks an open area such as courts, which is not built as a block.
 
-**To correct a building, edit its file and rebuild.** If you know the campus, this is the fastest way to improve the world: fix a colour, a floor count, or which side the entrance is on.
+**To correct a building, edit its file and rebuild.** If you know the campus, this is the fastest way to improve the world.
 
 ## What is not right yet
 
 | Limit | Why | Fix |
 |---|---|---|
-| Looks like a game level, not a photo | Flat colours, no textures | CC0 textures (Poly Haven), then splats from real footage |
-| People and vehicles are blocky | Procedural stand-ins | Rigged assets in Isaac Sim (Microsoft Rocketbox, Isaac Sim people) |
+| Looks like a game level, not a photo | Flat colours, no textures. The State's aerial imagery is licensed from Maxar, so it is not used. | CC0 textures, then splats from your own footage |
+| People and vehicles are blocky | Procedural stand-ins | Rigged assets in Isaac Sim |
 | Ground types have jagged 1 m edges; no curbs or real steps | Classified per cell from lidar brightness | Vector outlines for the route; stepped stair geometry |
-| Styles come from one photo per building | UH's campus-map photo | Your corrections; more photos |
-| Doors are placed on the right side, not the exact spot | No door positions in the data | UH's automatic-door and elevator layers; your corrections |
+| Most buildings have no door | UH maps only automatic doors: 16 in the corridor | Your photos or notes of where entrances are |
+| 13 buildings near the route are plain grey | City or OSM footprints that UH's map does not name, so there is no photo | Tell me what they are; `world.json` lists them as `unverified` |
+| Styles come from one photo each; 47 of them from small thumbnails | UH's campus-map photos | Your corrections; more photos |
 | The route takes roads in places | OpenStreetMap has few UH footpaths | Add paths in OSM, or derive them from the paved-ground map |
 | Not yet opened in Isaac Sim | No GPU in the build environment | Open `world.usdc` on an RTX machine |
 
 ## Data and credit
 
-- Lidar: 2022–2023 NOAA/USGS Hawaiʻi lidar, public domain.
-- Buildings, trees, props and building photos: University of Hawaiʻi at Mānoa campus map. UH marks its layers "for visualization purposes only"; downloads stay out of this repo.
-- Walkways, roads and off-campus footprints: © OpenStreetMap contributors (ODbL), via Overture Maps. `sites/uh_manoa/graph.osm.yaml` is derived from that data.
+| Source | Used for |
+|---|---|
+| 2022–2023 NOAA/USGS Hawaiʻi lidar (public domain) | Terrain, roof shapes, tree heights, ground type, roof lightness |
+| University of Hawaiʻi at Mānoa campus map | Building footprints, names, numbers and abbreviations; trees; props; automatic doors; building photos. UH marks its layers "for visualization purposes only"; downloads stay out of this repo. |
+| City and County of Honolulu Open Geospatial Data, *Building Footprints (CCH)* | Footprints of buildings UH's map lacks; height check |
+| City and County of Honolulu, *Elevation 5ft* and *Zoning* | Terrain check; zoning classes recorded in `world.json` |
+| State of Hawaiʻi GIS, *Oahu Elevation Contours 100ft* | Terrain check |
+| PacIOOS GeoServer: government land ownership, watersheds, streams | Regional context recorded in `world.json`. Its server only offers an older key exchange, so the cipher level is lowered for that host alone; its certificate is still checked. |
+| UH Mānoa Library MAGIS | Consulted as a reference. It serves no machine-readable campus layers. |
+| © OpenStreetMap contributors (ODbL), via Overture Maps | Walkways, roads, footprints the city layer lacks. `sites/uh_manoa/graph.osm.yaml` is derived from that data. |

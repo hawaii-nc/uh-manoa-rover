@@ -1,0 +1,18 @@
+id: university_avenue_building_4
+name: University Avenue Building 4
+tier: C
+floors: 1
+wall: '#cdbb94'
+trim: '#b9a780'
+glass: '#3a4248'
+roof: null
+windows: grid
+bay_m: 3.2
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Tan raised wooden building with a stair.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1038D_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

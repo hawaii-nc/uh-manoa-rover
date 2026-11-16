@@ -1,0 +1,18 @@
+id: university_lab_school_multipurpose_building
+name: University Lab School - Multipurpose Building
+tier: C
+floors: 1
+wall: '#d9c79a'
+trim: '#c5b386'
+glass: '#3a4248'
+roof: null
+windows: grid
+bay_m: 3.5
+window_ratio: 0.3
+shading: none
+ground_floor: arcade
+confidence: medium
+notes: Tan hall with an open covered lanai along the front.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1187_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

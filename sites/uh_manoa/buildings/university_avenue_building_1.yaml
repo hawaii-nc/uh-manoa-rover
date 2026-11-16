@@ -1,0 +1,18 @@
+id: university_avenue_building_1
+name: University Avenue Building 1
+tier: C
+floors: 1
+wall: '#ddd6bb'
+trim: '#c9c2a7'
+glass: '#4a5052'
+roof: null
+windows: grid
+bay_m: 3.2
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Raised cream wooden building with a long ramp.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1038A_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

@@ -1,0 +1,12 @@
+id: design_building
+name: Design Building
+tier: A
+floors: 3
+wall: '#e6dfc4'
+windows: curtain
+shading: fins
+ground_floor: solid
+roof: '#7a4a36'
+confidence: high
+sources:
+- 'Invented: demo_campus is a synthetic test site, not a real place'

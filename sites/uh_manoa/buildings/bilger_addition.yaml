@@ -5,13 +5,12 @@ floors: 6
 wall: '#bcb5a6'
 trim: '#a9a293'
 glass: '#35434b'
-roof: '#8c8a83'
+roof: null
 windows: slit
 bay_m: 4.0
 window_ratio: 0.3
 shading: none
 ground_floor: solid
-entrances: []
 confidence: medium
 notes: '1972 chemistry labs: grey-beige panels with a central strip of windows.'
 sources:

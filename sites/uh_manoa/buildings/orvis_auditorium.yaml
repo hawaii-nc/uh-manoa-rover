@@ -1,0 +1,18 @@
+id: orvis_auditorium
+name: Orvis Auditorium
+tier: C
+floors: null
+wall: '#cbbfa6'
+trim: '#b7ab92'
+glass: '#3a4248'
+roof: null
+windows: none
+bay_m: 4.0
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Beige concrete auditorium with blank walls and an entry canopy.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1166_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

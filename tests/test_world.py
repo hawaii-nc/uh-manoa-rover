@@ -14,7 +14,7 @@ from campus_rover.massing import box_massing, building_massing
 from campus_rover.meshkit import Mesh, Scene, hex_to_rgb, triangulate_polygon, wall_normal
 from campus_rover.overture import segments_to_campus_graph
 from campus_rover.site import load_site
-from campus_rover.style import Style, auto_style, load_styles, slug
+from campus_rover.style import Style, background_style, load_styles, slug, unverified_style
 from campus_rover.world import build_world, export_glb, export_usd, write_world
 
 
@@ -131,9 +131,41 @@ def test_style_validation_and_auto_style():
     with pytest.raises(ValueError, match="colour"):
         Style.from_dict({"id": "x", "wall": "beige"})
     assert slug("QUEEN LILI`UOKALANI CENTER") == "queen_liliuokalani_center"
-    assert auto_style("shed", area_m2=40).windows == "none"
-    assert auto_style("old", year=1925, pitched=True).roof == "#7a4a36"
-    assert auto_style("seventies", year=1972).shading == "fins"
+    assert Style.from_dict({"id": "x", "roof": None}).roof is None
+
+
+def test_buildings_without_evidence_are_never_dressed_up():
+    # Near the route: measured shape only. Far away: generic background, no year guessing.
+    plain = unverified_style("x")
+    assert plain.windows == "none" and plain.shading == "none"
+    assert background_style("shed", area_m2=40).windows == "none"
+    assert background_style("far", area_m2=900).windows == "grid"
+    scene = Scene()
+    info = generate_building(scene, "b", box_massing(box(0, 0, 30, 15), 0.0, 12.0), plain)
+    classes = {cls for (_, cls, _), m in scene.parts.items() if m.count}
+    assert classes == {"building", "roof"} and info["windows"] == 0 and info["doors"] == 0
+
+
+def test_doors_only_where_a_door_is_mapped():
+    massing = box_massing(box(0, 0, 30, 15), 0.0, 12.0)
+    style = Style(id="t", floors=3)
+    none = generate_building(Scene(), "b", massing, style)
+    assert none["doors"] == 0
+    scene = Scene()
+    # One door mapped just outside the south wall, one far away from any wall.
+    info = generate_building(scene, "b", massing, style, door_points=[(12.0, -1.0), (90, 90)])
+    assert info["doors"] == 1
+    v, _ = scene.parts[("b", "door", "door_4a3b2e")].arrays()
+    assert v[:, 0].mean() == pytest.approx(12.0) and v[:, 1].max() < 0.01   # on the south wall
+
+
+def test_roof_colour_comes_from_sheet_or_measurement():
+    massing = box_massing(box(0, 0, 30, 15), 0.0, 12.0)
+    scene = Scene()
+    generate_building(scene, "a", massing, Style(id="a", roof="#aa3322"), roof_color="#777777")
+    generate_building(scene, "b", massing, Style(id="b"), roof_color="#777777")
+    roofs = {g: m for (g, cls, m) in scene.parts if cls == "roof"}
+    assert roofs == {"a": "roof_aa3322", "b": "roof_777777"}
 
 
 def test_uh_style_sheets_are_valid_and_cite_sources():
@@ -142,6 +174,7 @@ def test_uh_style_sheets_are_valid_and_cite_sources():
     assert {"holmes_hall", "campus_center", "architecture_building"} <= set(styles)
     for style in styles.values():
         assert style.sources, f"{style.id} has no source"
+        assert style.sources[0].startswith("https://map.hawaii.edu/images/"), style.id
 
 
 @pytest.mark.parametrize("windows,shading,ground", [
@@ -154,8 +187,8 @@ def test_generate_building_makes_labelled_parts(windows, shading, ground):
     info = generate_building(scene, "buildings/t", box_massing(box(0, 0, 30, 15), 0.0, 12.0),
                              style)
     classes = {cls for (_, cls, _), m in scene.parts.items() if m.count}
-    assert {"building", "roof", "door"} <= classes
-    assert info["floors"] == 3 and info["doors"] == 1
+    assert {"building", "roof"} <= classes and "door" not in classes
+    assert info["floors"] == 3 and info["doors"] == 0
     has_glass = windows != "none" and shading != "lanai" or ground == "storefront"
     assert ("window" in classes) == has_glass
     v, _ = scene.parts[("buildings/t", "roof", "roof_8c8c88")].arrays()
@@ -211,6 +244,15 @@ def test_demo_world_builds_without_lidar(demo_world):
     assert r["surface_share"]["walkway"] > 0.01
     assert r["route"]["length_m"] > 100 and any(b["tier"] == "A" for b in r["buildings"])
     assert r["agents"]["person"] > 0
+    # Looks come from a style sheet, or the building stays plain: nothing is guessed nearby.
+    by_id = {b["id"]: b for b in r["buildings"]}
+    assert by_id["engineering_hall"]["style_source"] == "sheet"
+    assert by_id["engineering_hall"]["windows"] == 0 and by_id["student_center"]["windows"] > 0
+    for b in r["buildings"]:
+        if b["style_source"] == "unverified":
+            assert b["tier"] in "AB" and b["windows"] == 0 and b["doors"] == 0
+        if b["style_source"] == "procedural":
+            assert b["tier"] == "C"
 
 
 def test_agents_are_a_separate_layer(demo_world):
@@ -266,3 +308,59 @@ def test_glb_is_y_up_and_recentred(tmp_path):
     assert hi[1] - lo[1] == pytest.approx(10) and lo[1] == pytest.approx(0)   # height on Y
     assert hi[2] - lo[2] == pytest.approx(4)
     assert "campus:originOffset" in (tmp_path / "t.usda").read_text()
+
+
+# ---- official open data: checks ------------------------------------------------------
+
+
+def test_contour_check_measures_the_offset():
+    from campus_rover.opendata import FT, contour_check, contour_lines
+
+    rasters = synthetic_rasters(lambda x, y: np.zeros_like(x))        # ground at 100 m
+    feats = [{"properties": {"ELEVATION": 300}, "geometry": {
+        "type": "MultiLineString", "coordinates": [[[5, 5], [20, 20], [35, 5]], [[900, 900]]]}},
+        {"properties": {"ELEVATION": None}, "geometry": {"type": "LineString",
+                                                         "coordinates": [[1, 1], [2, 2]]}}]
+    lines = contour_lines(feats, "elevation", FT)
+    assert len(lines) == 2 and lines[0][1] == pytest.approx(91.44)
+    check = contour_check(rasters, lines)
+    assert check["points"] == 3 and check["mean_diff_m"] == pytest.approx(100 - 91.44, abs=0.01)
+    rasters.shift_z(-8.56)
+    assert contour_check(rasters, lines)["median_abs_diff_m"] == pytest.approx(0, abs=0.01)
+
+
+def test_height_check_and_footprint_height():
+    from campus_rover.opendata import footprint_height, height_check
+
+    holmes = footprint_height({"gis_height": 65.718, "maxht_m": None})     # feet -> meters
+    assert holmes == pytest.approx(20.03, abs=0.01)
+    assert footprint_height({"maxht_m": 12.0, "gis_height": 99}) == 12.0
+    assert footprint_height({"gis_height": "None"}) is None
+    ours = [(box(0, 0, 20, 20), 21.0), (box(100, 100, 120, 120), 9.0)]
+    official = [(box(1, 1, 19, 19), 20.0), (box(500, 500, 510, 510), 5.0)]
+    check = height_check(ours, official)
+    assert check == {"matched": 1, "median_diff_m": 1.0, "median_abs_diff_m": 1.0, "within_3m": 1.0}
+
+
+def test_gridder_records_roof_brightness():
+    grid = Gridder((0, 0, 2, 2), res=1.0)
+    grid.add(np.array([0.5, 0.5]), np.array([0.5, 0.5]), np.array([10.0, 12.0]),
+             np.array([1, 1]), np.array([400, 600]), np.array([1, 1]))
+    r = grid.finish()
+    assert r.roof_intensity[0, 0] == pytest.approx(500) and np.isnan(r.roof_intensity[1, 1])
+
+
+def test_query_layer_can_filter_by_box():
+    from campus_rover.arcgis import query_layer
+
+    seen = {}
+
+    def fake(url, params):
+        if url.endswith("/query"):
+            seen.update(params)
+            return {"features": []}
+        return {"maxRecordCount": 100}
+
+    query_layer("https://x/FeatureServer/0", "EPSG:32604", fetch=fake, bbox=(1, 2, 3, 4))
+    assert seen["geometry"] == "1,2,3,4" and seen["geometryType"] == "esriGeometryEnvelope"
+    assert seen["inSR"] == 32604

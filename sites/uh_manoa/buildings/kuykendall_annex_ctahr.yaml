@@ -1,0 +1,18 @@
+id: kuykendall_annex_ctahr
+name: Kuykendall Annex - Ctahr
+tier: C
+floors: 1
+wall: '#7a5f48'
+trim: '#5f4a38'
+glass: '#2c3032'
+roof: null
+windows: ribbon
+bay_m: 3.5
+window_ratio: 0.6
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Brown raised wooden annex with dark window bands.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1125_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

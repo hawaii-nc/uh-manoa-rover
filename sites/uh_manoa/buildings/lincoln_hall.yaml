@@ -1,0 +1,18 @@
+id: lincoln_hall
+name: Lincoln Hall
+tier: C
+floors: 4
+wall: '#e0d6a8'
+trim: '#ccc294'
+glass: '#30383c'
+roof: null
+windows: ribbon
+bay_m: 3.5
+window_ratio: 0.7
+shading: eyebrows
+ground_floor: solid
+confidence: medium
+notes: '1962 East-West Center: cream bands alternating with dark window bands.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1179_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

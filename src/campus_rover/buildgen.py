@@ -3,7 +3,7 @@
 Every wall of every roof-level block gets a facade built floor by floor:
 windows (grid, ribbon, curtain wall or slits), sun shading (fins, eyebrows
 or open-air lanai corridors), a ground floor (solid, arcade or storefront),
-then doors and a roof. Parts are labelled `building`, `window`, `door` and
+then a roof, and doors where a door is mapped. Parts are labelled `building`, `window`, `door` and
 `roof`, so segmentation ground truth comes for free.
 """
 
@@ -17,8 +17,8 @@ from .massing import Massing
 from .meshkit import Scene, polygon_rings, wall_normal
 from .style import Style
 
-SIDE_VECTORS = {"N": (0.0, 1.0), "S": (0.0, -1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
-DOOR_WIDTH = {"single": 1.1, "double": 2.2, "wide": 4.5}
+MAX_DOOR_SNAP_M = 10.0   # a mapped door further than this from any wall is ignored
+DEFAULT_ROOF = "#8c8c88"
 MIN_FACADE_M = 2.4      # shorter wall pieces stay blank
 PARAPET_M = 0.45
 FOUNDATION_M = 2.5      # walls reach below the base so slopes never show a gap
@@ -33,11 +33,16 @@ def floor_height(massing: Massing, style: Style) -> tuple[int, float]:
     return floors, max(main / floors, 2.6)
 
 
-def generate_building(scene: Scene, group: str, massing: Massing, style: Style) -> dict:
+def generate_building(scene: Scene, group: str, massing: Massing, style: Style,
+                      door_points=(), roof_color: str | None = None) -> dict:
+    """Build one building. `door_points` are mapped door positions (x, y): doors are
+    only placed there, never guessed. `roof_color` is used when the style sheet
+    leaves the roof colour open (e.g. a grey measured from lidar)."""
     wall_mat = scene.color_material("wall", style.wall, roughness=0.9)
     trim_mat = scene.color_material("trim", style.trim, roughness=0.85)
     glass_mat = scene.color_material("glass", style.glass, roughness=0.15, metallic=0.4)
-    roof_mat = scene.color_material("roof", style.roof, roughness=0.95)
+    roof_mat = scene.color_material("roof", style.roof or roof_color or DEFAULT_ROOF,
+                                    roughness=0.95)
     door_mat = scene.color_material("door", style.door, roughness=0.6)
     dark_mat = scene.material("shadow", (0.08, 0.08, 0.09), roughness=1.0)
 
@@ -83,7 +88,7 @@ def generate_building(scene: Scene, group: str, massing: Massing, style: Style) 
 
     if massing.pitched and massing.roof is not None:
         _pitched_roof(roof, massing)
-    doors = _doors(ground_edges, base, style, door, trim)
+    doors = _doors(ground_edges, base, door_points, door)
     return {"floors": floors, "floor_height": round(fh, 2), "blocks": len(massing.blocks),
             "windows": n_windows, "doors": doors, "pitched": massing.pitched}
 
@@ -180,40 +185,25 @@ def _pitched_roof(roof, massing: Massing) -> None:
     roof.add(verts, np.r_[np.c_[a, b, e], np.c_[a, e, d]])
 
 
-def _doors(ground_edges, base, style: Style, door, trim) -> int:
-    if not ground_edges:
-        return 0
-    from .style import Entrance
+def _doors(ground_edges, base, door_points, door) -> int:
+    """One door per mapped door point, on the nearest ground-level wall."""
+    placed = 0
+    for px, py in door_points:
+        best = None
+        for length, p, q in ground_edges:
+            ux, uy = (q[0] - p[0]) / length, (q[1] - p[1]) / length
+            s = min(max((px - p[0]) * ux + (py - p[1]) * uy, 1.2), length - 1.2)
+            d = math.dist((px, py), (p[0] + ux * s, p[1] + uy * s))
+            if best is None or d < best[0]:
+                best = (d, p, ux, uy, s, wall_normal(p, q))
+        if best is None or best[0] > MAX_DOOR_SNAP_M:
+            continue
+        _, p, ux, uy, s, (nx, ny) = best
 
-    entrances = style.entrances or [Entrance(side="", kind="double", covered=False)]
-    used = set()
-    for ent in entrances:
-        side = SIDE_VECTORS.get(ent.side)
+        def at(t, z, p=p, ux=ux, uy=uy, nx=nx, ny=ny):
+            return (p[0] + ux * t + nx * 0.07, p[1] + uy * t + ny * 0.07, z)
 
-        def score(edge, side=side):
-            length, p, q = edge
-            if side is None:
-                return length
-            nx, ny = wall_normal(p, q)
-            return (nx * side[0] + ny * side[1]) * 100 + min(length, 40) * 0.5
-
-        ranked = sorted((e for e in ground_edges if id(e) not in used), key=score, reverse=True)
-        if not ranked:
-            break
-        edge = ranked[0]
-        used.add(id(edge))
-        length, p, q = edge
-        ux, uy = (q[0] - p[0]) / length, (q[1] - p[1]) / length
-        nx, ny = wall_normal(p, q)
-        w = min(DOOR_WIDTH[ent.kind], length - 0.6)
-        s0 = (length - w) / 2
-
-        def at(s, z, out, p=p, ux=ux, uy=uy, nx=nx, ny=ny):
-            return (p[0] + ux * s + nx * out, p[1] + uy * s + ny * out, z)
-
-        door.quad(at(s0, base, 0.07), at(s0 + w, base, 0.07),
-                  at(s0 + w, base + 2.4, 0.07), at(s0, base + 2.4, 0.07))
-        if ent.covered:
-            c = at(length / 2, base + 2.8, 1.25)
-            trim.box(c, (w + 2.0, 2.5, 0.18), math.atan2(uy, ux))
-    return len(used)
+        door.quad(at(s - 1.0, base), at(s + 1.0, base), at(s + 1.0, base + 2.3),
+                  at(s - 1.0, base + 2.3))
+        placed += 1
+    return placed

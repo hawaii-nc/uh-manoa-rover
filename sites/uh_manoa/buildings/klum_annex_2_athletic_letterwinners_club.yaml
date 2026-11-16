@@ -1,0 +1,18 @@
+id: klum_annex_2_athletic_letterwinners_club
+name: Klum Annex 2 - Athletic Letterwinners Club
+tier: C
+floors: 1
+wall: '#c9b98f'
+trim: '#7a6a55'
+glass: '#3f4748'
+roof: null
+windows: grid
+bay_m: 3.5
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Raised tan wooden annex with a brown roof edge.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1108G_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

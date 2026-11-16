@@ -1,0 +1,18 @@
+id: law_school_clinical_building
+name: Law School Clinical Building
+tier: C
+floors: 2
+wall: '#d6cdb0'
+trim: '#c2b99c'
+glass: '#2f4f55'
+roof: null
+windows: grid
+bay_m: 3.5
+window_ratio: 0.5
+shading: eyebrows
+ground_floor: solid
+confidence: medium
+notes: Tan two-storey with dark teal windows under a flat overhanging roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1260_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

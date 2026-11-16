@@ -1,0 +1,18 @@
+id: otto_klum_gymnasium
+name: Otto Klum Gymnasium
+tier: C
+floors: null
+wall: '#e6dcae'
+trim: '#d2c89a'
+glass: '#3a4248'
+roof: null
+windows: none
+bay_m: 5.0
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: 'Cream-yellow gymnasium: large blank walls with louvred vents near the top.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1152_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

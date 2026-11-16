@@ -5,16 +5,12 @@ floors: 8
 wall: '#b9b5a8'
 trim: '#a5a194'
 glass: '#3f6f9a'
-roof: '#8f8d86'
+roof: null
 windows: curtain
 bay_m: 3.2
 window_ratio: 0.85
 shading: none
 ground_floor: arcade
-entrances:
-- side: W
-  kind: wide
-  covered: true
 confidence: high
 notes: 1995. Blue glass curtain wall in a grey-tan frame, columns at ground level.
 sources:

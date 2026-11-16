@@ -204,6 +204,21 @@ def cmd_fetch_world_data(args) -> int:  # pragma: no cover - network
         rasters = rasterize_tiles(tiles, box, cfg.lidar_res, progress=lambda m: print(f"  {m}"))
         rasters.save(site.root / cfg.rasters)
         print(f"lidar grids {rasters.shape} at {cfg.lidar_res} m -> {site.root / cfg.rasters}")
+    if cfg.open_data:
+        from .lidar import Rasters
+        from .opendata import FT, contour_check, contour_lines, fetch_open_data
+
+        model = site.load_model()
+        box = corridor_bbox(site, model, cfg)
+        folder = site.root / cfg.open_data
+        fetch_open_data(site, box, folder, force=args.force)
+        contours = folder / "cch_contours_5ft.json"
+        if cfg.rasters and (site.root / cfg.rasters).exists() and contours.exists():
+            check = contour_check(Rasters.load(site.root / cfg.rasters),
+                                  contour_lines(json.loads(contours.read_text()), "ELEVATION", FT))
+            check.pop("levels_m", None)
+            print(f"lidar vs. 5 ft contours (before any shift): {check}")
+            print("  set world.vertical_shift_m in site.yaml to minus mean_diff_m")
     return 0
 
 
@@ -236,12 +251,20 @@ def cmd_build_world(args) -> int:
     world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."))
     files = write_world(world, Path(args.out), usd=not args.no_usd)
     r = world.report
-    tiers = {t: sum(b["tier"] == t for b in r["buildings"]) for t in "ABC"}
+    campus = [b for b in r["buildings"] if b["campus"]]
+    how = {k: sum(b["style_source"] == k for b in r["buildings"])
+           for k in ("sheet", "unverified", "procedural")}
     print(f"{site.name}: {r['size_m'][0]} x {r['size_m'][1]} m, ground {r['elevation_m'][0]}"
           f"-{r['elevation_m'][1]} m, lidar: {'yes' if r['lidar'] else 'no (flat)'}")
-    print(f"buildings {len(r['buildings'])} (tier A {tiers['A']}, B {tiers['B']}, C {tiers['C']};"
-          f" {sum(b['researched'] for b in r['buildings'])} with a style sheet)"
+    print(f"buildings {len(r['buildings'])}: {len(campus)} campus, "
+          f"{len(r['buildings']) - len(campus)} other · looks from a style sheet {how['sheet']}, "
+          f"plain unverified {how['unverified']}, far background {how['procedural']}"
+          f" · doors {sum(b['doors'] for b in r['buildings'])}"
           f" · trees {r['trees']} · props {sum(r['props'].values())}")
+    for key, value in (r.get("checks") or {}).items():
+        if isinstance(value, dict):
+            value = {k: v for k, v in value.items() if k != "levels_m"}
+        print(f"  check {key}: {value}")
     print(f"triangles {r['mesh']['triangles']:,} · surfaces {r['surface_share']}")
     if r["agents"]:
         print("agents: " + ", ".join(f"{k} {v}" for k, v in r["agents"].items() if v))

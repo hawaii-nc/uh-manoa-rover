@@ -5,16 +5,12 @@ floors: 4
 wall: '#e4e0d2'
 trim: '#cfcab8'
 glass: '#4f6672'
-roof: '#8f8d86'
+roof: null
 windows: grid
 bay_m: 2.8
 window_ratio: 0.6
 shading: fins
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: medium
 notes: '1959 modernist: white-cream walls, vertical window strips, glazed stair tower.'
 sources:

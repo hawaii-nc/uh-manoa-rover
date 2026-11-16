@@ -11,10 +11,6 @@ bay_m: 3.0
 window_ratio: 0.4
 shading: none
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: high
 notes: 1939. Pale grey-cream walls under a red clay-tile hip roof.
 sources:

@@ -5,16 +5,12 @@ floors: null
 wall: '#d8d2bf'
 trim: '#c4bda8'
 glass: '#2f3940'
-roof: '#8f8c84'
+roof: null
 windows: ribbon
 bay_m: 3.5
 window_ratio: 0.7
 shading: eyebrows
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: high
 notes: 1951. Cream concrete with long dark window bands and no interior corridors.
 sources:

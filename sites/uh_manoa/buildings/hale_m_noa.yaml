@@ -5,16 +5,12 @@ floors: 13
 wall: '#cfcabb'
 trim: '#bdb8a8'
 glass: '#44586a'
-roof: '#8f8c84'
+roof: null
 windows: grid
 bay_m: 3.0
 window_ratio: 0.7
 shading: eyebrows
 ground_floor: arcade
-entrances:
-- side: W
-  kind: double
-  covered: true
 confidence: medium
 notes: '1962 East-West Center dormitory by I. M. Pei: 13 floors, concrete grid with recessed windows.'
 sources:

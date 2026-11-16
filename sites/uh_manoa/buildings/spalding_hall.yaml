@@ -5,13 +5,12 @@ floors: 4
 wall: '#dcd5bb'
 trim: '#c8c1a7'
 glass: '#44545c'
-roof: '#8f8c82'
+roof: null
 windows: slit
 bay_m: 2.5
 window_ratio: 0.3
 shading: fins
 ground_floor: solid
-entrances: []
 confidence: low
 notes: 1961. Cream block behind a tall patterned sun screen.
 sources:

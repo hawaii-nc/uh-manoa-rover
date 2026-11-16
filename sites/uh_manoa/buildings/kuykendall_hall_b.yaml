@@ -1,0 +1,18 @@
+id: kuykendall_hall_b
+name: Kuykendall Hall
+tier: C
+floors: null
+wall: '#c9c1a8'
+trim: '#b5ad94'
+glass: '#3d464a'
+roof: null
+windows: grid
+bay_m: 3.5
+window_ratio: 0.5
+shading: lanai
+ground_floor: solid
+confidence: medium
+notes: 'Part of Kuykendall Hall: beige concrete with open corridors and louvres.'
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1192_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

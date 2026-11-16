@@ -1,0 +1,18 @@
+id: krauss_hall
+name: Krauss Hall
+tier: C
+floors: 1
+wall: '#b9bdb0'
+trim: '#3f6f5c'
+glass: '#3f5a50'
+roof: null
+windows: grid
+bay_m: 3.0
+window_ratio: 0.4
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Grey-green stucco with green doors and window frames around a courtyard.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1046_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

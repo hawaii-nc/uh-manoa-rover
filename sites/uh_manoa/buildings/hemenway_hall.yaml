@@ -11,10 +11,6 @@ bay_m: 3.2
 window_ratio: 0.5
 shading: none
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: high
 notes: 1938. Tan stucco, dark window frames, dark brown hip roof, upstairs balcony.
 sources:

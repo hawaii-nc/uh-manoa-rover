@@ -1,0 +1,18 @@
+id: bachman_annex_13
+name: Bachman Annex 13
+tier: C
+floors: 1
+wall: '#d2cfc2'
+trim: '#bebbae'
+glass: '#4a5052'
+roof: null
+windows: none
+bay_m: 3.2
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: low
+notes: Cream wooden annex with a shed roof; the photographed side is blank.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1103E_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

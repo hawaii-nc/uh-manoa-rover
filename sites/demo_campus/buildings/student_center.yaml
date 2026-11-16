@@ -1,0 +1,11 @@
+id: student_center
+name: Student Center
+tier: A
+floors: 3
+wall: '#cdbb9c'
+windows: ribbon
+shading: eyebrows
+ground_floor: storefront
+confidence: high
+sources:
+- 'Invented: demo_campus is a synthetic test site, not a real place'

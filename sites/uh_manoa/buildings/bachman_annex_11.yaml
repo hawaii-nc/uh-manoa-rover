@@ -1,0 +1,18 @@
+id: bachman_annex_11
+name: Bachman Annex 11
+tier: C
+floors: 1
+wall: '#e2dfd6'
+trim: '#cecbc2'
+glass: '#4a5052'
+roof: null
+windows: ribbon
+bay_m: 3.2
+window_ratio: 0.5
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Raised off-white wooden annex with a railed deck.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1103C_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

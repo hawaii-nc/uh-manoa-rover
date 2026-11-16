@@ -1,0 +1,18 @@
+id: law_school
+name: Law School
+tier: C
+floors: 2
+wall: '#b9b3a4'
+trim: '#a59f90'
+glass: '#30383c'
+roof: null
+windows: ribbon
+bay_m: 4.5
+window_ratio: 0.6
+shading: lanai
+ground_floor: arcade
+confidence: medium
+notes: 1983. Exposed concrete with deep overhangs and an open, shaded ground level.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1142_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

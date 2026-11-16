@@ -5,16 +5,12 @@ floors: 3
 wall: '#b5aa94'
 trim: '#a39883'
 glass: '#39434a'
-roof: '#8f8b82'
+roof: null
 windows: slit
 bay_m: 4.5
 window_ratio: 0.3
 shading: none
 ground_floor: solid
-entrances:
-- side: S
-  kind: double
-  covered: true
 confidence: medium
 notes: 1960. Large blank precast panels; open stair bay in the middle of the front.
 sources:

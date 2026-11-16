@@ -1,0 +1,11 @@
+id: engineering_hall
+name: Engineering Hall
+tier: A
+floors: 4
+wall: '#b9b4aa'
+windows: grid
+shading: lanai
+ground_floor: arcade
+confidence: high
+sources:
+- 'Invented: demo_campus is a synthetic test site, not a real place'

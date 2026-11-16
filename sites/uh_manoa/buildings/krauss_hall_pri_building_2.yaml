@@ -1,0 +1,18 @@
+id: krauss_hall_pri_building_2
+name: Krauss Hall Pri Building 2
+tier: C
+floors: 1
+wall: '#e2ddc8'
+trim: '#3f7f78'
+glass: '#3f5a58'
+roof: null
+windows: grid
+bay_m: 3.0
+window_ratio: 0.5
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Cream single storey with teal doors and trim.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1046C_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

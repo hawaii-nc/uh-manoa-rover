@@ -1,0 +1,18 @@
+id: university_avenue_building_3
+name: University Avenue Building 3
+tier: C
+floors: 1
+wall: '#9aa08c'
+trim: '#868c78'
+glass: '#3a4248'
+roof: '#8a6a50'
+windows: grid
+bay_m: 3.2
+window_ratio: 0.3
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Grey-green raised wooden building under a brown roof.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1038C_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

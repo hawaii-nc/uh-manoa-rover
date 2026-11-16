@@ -184,10 +184,12 @@ Each step ends in something you can look at.
 | P0 Setup | Done: style-sheet schema, `CLAUDE.md` |
 | P1 Shape | Done for the corridor: lidar terrain, roof-level massing, trees, walkway graph |
 | P2 Generator | Done: windows, sun shading, ground floors, doors, flat and pitched roofs |
-| P3 Style sheets | First pass done: 28 tier A and 22 tier B buildings, each from UH's photo. Needs your review. |
+| P3 Style sheets | Done for all 95 campus buildings in the corridor, each from UH's photo. No look is guessed from the year built; buildings with no evidence stay plain grey. Needs your review. |
 | P4 Ground detail | Started: road / walkway / grass from lidar. No curbs, steps or textures yet. |
 | P5 Agents | First pass: procedural stand-ins placed by the crowd model, two scenarios. Rigged assets still to do. |
 | P6 Training data | Not started. Needs Isaac Sim on an RTX GPU. |
+
+**Sourcing rule (2026-11-16).** Nothing in the corridor is guessed; see [WORLD.md](WORLD.md). Official Honolulu, State and PacIOOS data are now queried, and they showed the lidar heights were 21.8 m off the official height reference, which is corrected.
 
 Two things changed from the plan. OpenStreetMap's Overpass server refused this session, so walkways come from Overture Maps, which republishes the same data. And the lidar turned out to label only ground, so roofs and trees are told apart by how many echoes each laser pulse returned.
 

@@ -5,16 +5,12 @@ floors: 5
 wall: '#d2bfa3'
 trim: '#bfac90'
 glass: '#3e474b'
-roof: '#93897a'
+roof: null
 windows: ribbon
 bay_m: 3.5
 window_ratio: 0.7
 shading: eyebrows
 ground_floor: arcade
-entrances:
-- side: S
-  kind: wide
-  covered: true
 confidence: medium
 notes: 1993. Tan, curved front with horizontal tiers of windows and sunshades.
 sources:

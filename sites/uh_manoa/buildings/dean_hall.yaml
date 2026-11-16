@@ -5,16 +5,12 @@ floors: 3
 wall: '#ead9a8'
 trim: '#b9824f'
 glass: '#4b4a3a'
-roof: '#9a8f7c'
+roof: null
 windows: grid
 bay_m: 3.0
 window_ratio: 0.45
 shading: eyebrows
 ground_floor: solid
-entrances:
-- side: N
-  kind: double
-  covered: true
 confidence: high
 notes: 1929. Warm cream walls on a terracotta base, deep bracketed eaves.
 sources:

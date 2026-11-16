@@ -11,7 +11,6 @@ bay_m: 4.0
 window_ratio: 0.6
 shading: none
 ground_floor: arcade
-entrances: []
 confidence: medium
 notes: '1994 food court: pink-tan columns, teal metal roof.'
 sources:

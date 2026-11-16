@@ -1,0 +1,18 @@
+id: bachman_annex_10
+name: Bachman Annex 10
+tier: C
+floors: 1
+wall: '#ddd9c8'
+trim: '#c9c5b4'
+glass: '#6a6f6c'
+roof: null
+windows: ribbon
+bay_m: 3.2
+window_ratio: 0.6
+shading: none
+ground_floor: solid
+confidence: medium
+notes: Raised cream wooden annex with louvre windows and a ramp.
+sources:
+- https://map.hawaii.edu/images/MA/building_images/thumbnails/1103B_01_thumb.jpg
+- UH Mānoa campus map, Buildings layer (year built, description)

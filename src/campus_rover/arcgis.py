@@ -106,8 +106,12 @@ def query_layer(
     fetch: Fetch = http_get_json,
     page_size: int | None = None,
     pause_s: float = 0.0,
+    bbox: tuple[float, float, float, float] | None = None,
 ) -> list[dict]:
-    """All features of one layer as GeoJSON-style dicts in `out_crs`."""
+    """Features of one layer as GeoJSON-style dicts in `out_crs`.
+
+    `bbox` (x0, y0, x1, y1 in `out_crs`) keeps only features that touch that box,
+    which matters for island-wide layers."""
     layer_url = layer_url.rstrip("/")
     info = fetch(layer_url, {})
     page = page_size or int(info.get("maxRecordCount") or 1000)
@@ -123,6 +127,10 @@ def query_layer(
             "returnGeometry": "true",
             "outSR": sr,
         }
+        if bbox is not None:
+            params.update(geometry=",".join(str(v) for v in bbox), inSR=sr,
+                          geometryType="esriGeometryEnvelope",
+                          spatialRel="esriSpatialRelIntersects")
         if supports_paging:
             params.update(resultOffset=offset, resultRecordCount=page)
         data = fetch(f"{layer_url}/query", params)
