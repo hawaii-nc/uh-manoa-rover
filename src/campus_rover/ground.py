@@ -33,6 +33,7 @@ CLASSES = {
     "walkway:brick": ("brick",    (0.80, 0.60, 0.46), "flat"),
     "ramp":         ("concrete",  (0.78, 0.76, 0.71), "flat"),
     "stairs":       ("concrete",  (0.74, 0.72, 0.68), "stairs"),
+    "stairs:green": ("concrete",  (0.22, 0.52, 0.47), "stairs"),
     "curb":         ("concrete",  (0.70, 0.69, 0.66), "curb"),
     "wall":         ("plaster",   (0.72, 0.70, 0.66), "wall"),
     "rock_wall":    ("rock_wall", (0.45, 0.42, 0.40), "wall"),
@@ -396,22 +397,83 @@ def load_paving(path) -> list[dict]:
 
 
 def apply_paving(features: list, regions: list[dict]) -> list:
-    """Split walkway polygons by paving region: the part inside a region becomes
-    `walkway:<material>`, the rest stays plain walkway."""
+    """Split polygons by paving region: the part of a `class` (walkway unless the region says
+    otherwise) inside a region becomes `<class>:<material>`, the rest keeps its class."""
     from shapely.geometry import Point
 
+    zones: dict[str, list] = {}
+    for r in regions:
+        zones.setdefault(r.get("class", "walkway"), []).append(
+            (Point(*r["center"]).buffer(float(r["radius_m"])), r["material"]))
     out = []
-    zones = [(Point(*r["center"]).buffer(float(r["radius_m"])), r["material"]) for r in regions]
     for geom, cls, paint in features:
-        if cls != "walkway":
+        if cls not in zones:
             out.append((geom, cls, paint))
             continue
         rest = geom
-        for zone, material in zones:
+        for zone, material in zones[cls]:
             inside = rest.intersection(zone)
             if not inside.is_empty:
-                out.append((inside, f"walkway:{material}", paint))
+                out.append((inside, f"{cls}:{material}", paint))
                 rest = rest.difference(zone)
         if not rest.is_empty:
             out.append((rest, cls, paint))
     return out
+
+
+def add_stair_rails(scene: Scene, treads: list, near: list, rasters, bbox,
+                    height: float = 0.95) -> int:
+    """Metal handrails along both sides of each flight of stairs within 6 m of the given
+    footprints (UH's photos show rails on the Campus Center and Architecture stairs; the survey
+    does not map them, so the rails are drawn only where a photo shows them)."""
+    from shapely.ops import unary_union
+
+    x0, y0, x1, y1 = bbox
+    if not treads or not near:
+        return 0
+    steel = scene.material("rail_steel", (0.55, 0.57, 0.60), roughness=0.5, metallic=0.6)
+    mesh = scene.mesh("props", "rail", steel)
+    flights = unary_union([t.buffer(0.35) for t in treads])
+    n = 0
+    for fl in getattr(flights, "geoms", [flights]):
+        if fl.area < 1.5 or not any(fl.distance(b) < 6.0 for b in near):
+            continue
+        mine = [t for t in treads if t.intersects(fl) and t.area > 0.3]
+        if not mine:
+            continue
+        # A tread is a long thin strip: its long side runs across the stairs, so people climb
+        # along the other direction.
+        wide_tread = max(mine, key=lambda t: t.area)
+        rect = wide_tread.minimum_rotated_rectangle
+        if rect.geom_type != "Polygon":
+            continue
+        c = list(rect.exterior.coords)[:4]
+        s0, s1 = math.dist(c[0], c[1]), math.dist(c[1], c[2])
+        ax, ay = ((c[1][0] - c[0][0]), (c[1][1] - c[0][1])) if s0 >= s1 else \
+            ((c[2][0] - c[1][0]), (c[2][1] - c[1][1]))
+        across_len = max(s0, s1)
+        al = math.hypot(ax, ay) or 1.0
+        ax, ay = ax / al, ay / al                      # across the stairs
+        ux, uy = -ay, ax                               # up the stairs
+        cx, cy = fl.centroid.x, fl.centroid.y
+        proj = [(p[0] - cx) * ux + (p[1] - cy) * uy for p in fl.exterior.coords]
+        t0, t1 = min(proj), max(proj)
+        if across_len < 1.0 or t1 - t0 < 1.0 or not (x0 < cx < x1 and y0 < cy < y1):
+            continue
+        for side in (-1, 1):
+            off = side * max(across_len / 2 - 0.08, 0.3)
+            pts = []
+            steps = max(round((t1 - t0) / 1.3), 1)
+            for t in np.linspace(t0, t1, steps + 1):
+                px, py = cx + ux * t + ax * off, cy + uy * t + ay * off
+                pts.append((px, py, float(rasters.ground_z(px, py))))
+            for px, py, pz in pts:                                   # posts
+                mesh.box((px, py, pz), (0.05, 0.05, height), math.atan2(uy, ux))
+            for (p, q) in zip(pts, pts[1:], strict=False):          # the top rail and a mid rail
+                for h in (height, height * 0.5):
+                    mesh.quad((p[0], p[1], p[2] + h - 0.03), (q[0], q[1], q[2] + h - 0.03),
+                              (q[0], q[1], q[2] + h + 0.03), (p[0], p[1], p[2] + h + 0.03))
+                    mesh.quad((p[0], p[1], p[2] + h - 0.03), (p[0], p[1], p[2] + h + 0.03),
+                              (q[0], q[1], q[2] + h + 0.03), (q[0], q[1], q[2] + h - 0.03))
+            n += 1
+    return n

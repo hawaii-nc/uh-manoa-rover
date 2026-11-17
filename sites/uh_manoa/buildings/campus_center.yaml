@@ -3,8 +3,8 @@ name: Campus Center
 tier: A
 floors: 3
 wall: '#c6c4ba'
-trim: '#b4b2a8'
-glass: '#3f4a42'
+trim: '#d4d2ca'
+glass: '#5b6652'
 roof: null
 windows: ribbon
 bay_m: 4.0

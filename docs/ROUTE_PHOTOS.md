@@ -28,3 +28,29 @@ Holmes Hall (1163, 4 photos), Campus Center (1055, 5), Architecture (1016, 4). T
   only roughly visible, so it is listed as approximate. Check it in the explorer.
 - **Leaf colours and flower flecks** are an artist's reading of the photos, not measurements.
 - **Fence heights, zebra bars, lamp shape** are typical values (see WORLD.md).
+
+
+## Sculptures and street furniture (UH art layer and photos)
+
+UH's art layer gives each piece a name, artist, year, surveyed point and a photo
+(`https://map.hawaii.edu/images/MA/Art/ART_0nn.jpg`, cached under `sites/uh_manoa/cache/photos/art/`).
+`monuments.py` draws the outdoor pieces nearest the route at those points:
+
+| Piece (artist, year) | Where | What the photo shows | Size basis |
+|---|---|---|---|
+| Gate of Hope (Liberman, 1972) | Holmes Hall lawn | red-orange painted steel cylinders cut on the slant | estimate, about 6 m |
+| Divers (Stackhouse, 1991) | lawn east of Holmes | a ribbed brass boat frame lying on the grass | estimate, about 7 m long |
+| Krypton 1 x 6 x 18 (Hopper, 1973) | under the trees by Kuykendall | a pale concrete monolith | the title: 1 x 6 x 18 ft |
+| The Fourth Sign (Smith, 1976) | north of the plaza | two black angular steel arches | estimate |
+| Hawai‘i Peace Memorial (Koji, 1986) | east lawn | a five-tier granite pagoda | estimate |
+| To the Nth Power (Watson, 1971) | near Architecture | five interlocked weathering-steel rings | estimate |
+| Hina o na Lani (Clurman, 1975) | near Architecture | a seated pink granite figure on a black plinth | estimate |
+| Instructional Steel Connection Sculpture (AISC, 2004) | Holmes Hall | bolted steel beam connections | estimate |
+| Spirit of Loyalty, Mind & Heart (1995) | Varsity Victory Volunteers court | a green spire and a twisting bronze flame | estimate |
+| Chance Meeting (Segal, 1991) | by the street | three life-size figures in long coats | life size |
+| Varney Circle Fountain (1934) | south lawn | a round concrete fountain inside a round hedge | estimate |
+
+Murals and indoor pieces are not drawn. UH's seating layer says **Bench** or **Table**: benches are wood-slat on
+steel frames (Campus Center photos), tables are picnic tables (Architecture photos). The green terrace stairs and
+the stair handrails at Campus Center and Architecture come from photos 1055_01/_05 and 1016_01/_03/_04; the survey
+maps neither the colour nor the rails.

@@ -23,10 +23,11 @@ from pathlib import Path
 import numpy as np
 
 from .buildgen import generate_building
-from .furniture import drum_lamp, slotted_trash_can
+from .furniture import drum_lamp, picnic_table, slat_bench, slotted_trash_can
 from .lidar import Rasters, fill_holes
 from .massing import Massing, box_massing, building_massing
 from .meshkit import Scene
+from .monuments import monument_for
 from .overture import ROAD_WIDTH_M
 from .physics import MODEL_COLLISION, collision_for, collision_stats
 from .style import Style, background_style, load_styles, slug, unverified_style
@@ -449,6 +450,13 @@ def build_world(site, scenario=None, route_key: str | None = None,
         paved = apply_paving(features, load_paving(
             site.root / cfg.paving if cfg.paving else None))
         ground_report = add_landcover(scene, paved, rasters, bbox)
+        rail_buildings = [building_polygon(b) for b in model.buildings
+                          if any(k in (b.name or "").lower() for k in ("campus center",
+                                                                       "architecture"))]
+        from .ground import add_stair_rails
+
+        ground_report["stair_rails"] = add_stair_rails(
+            scene, [g for g, c, _ in features if c == "stairs"], rail_buildings, rasters, bbox)
         lines_cfg = cfg.ground_lines or {}
         stall_lines = []
         if lines_cfg and (site.root / lines_cfg["file"]).exists():
@@ -673,11 +681,30 @@ def build_world(site, scenario=None, route_key: str | None = None,
     n_models: dict[str, int] = {}
     prop_models = {a.cls: a for a in library.values() if a.cls not in ("car", "street_light")}
     prop_models.setdefault("trash_can", slotted_trash_can())
+    prop_models["bench"] = slat_bench()              # UH's seating layer says bench or table
+    table_model, monument_cache = picnic_table(), {}
     for prop in model.props:
         x, y = prop.xy
         if prop.cls in INDOOR_PROPS or not inside(x, y, 1.0) or inside_any_building(model, (x, y)):
             continue
         z = float(rasters.ground_z(x, y))
+        if prop.cls == "art_piece":        # a sculpture drawn from UH's photo of it, else nothing
+            piece = monument_for(prop.name, monument_cache)
+            if piece is not None:
+                scene.place(piece, "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+                n_props["art_piece"] = n_props.get("art_piece", 0) + 1
+                n_models["monuments"] = n_models.get("monuments", 0) + 1
+                if "varney" in (prop.name or "").lower():       # the fountain's round hedge
+                    for k in range(36):
+                        a = 2 * math.pi * k / 36
+                        hx, hy = x + 7.4 * math.cos(a), y + 7.4 * math.sin(a)
+                        place_ground_cover(scene, veg_cache, "bush", hx, hy,
+                                           float(rasters.ground_z(hx, hy)), k, lod=0)
+            continue
+        if prop.cls == "bench" and prop.props.get("type") == "table":
+            scene.place(table_model, "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+            n_props["picnic_table"] = n_props.get("picnic_table", 0) + 1
+            continue
         if prop.cls in prop_models:        # a real model exists for this kind of object
             scene.place(prop_models[prop.cls], "props", x, y, z,
                         (_seed(x, y) % 8) * math.pi / 4)

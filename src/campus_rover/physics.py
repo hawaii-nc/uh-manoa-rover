@@ -25,7 +25,7 @@ COLLISION = {
     "walkway": "none", "ramp": "none", "road": "none", "grass": "none", "gravel": "none",
     "dirt": "none", "rock": "none", "planter": "none", "stepstone": "none",
     "sports_court": "none", "building_slab": "none", "stairs": "none", "curb": "none",
-    "wall": "none", "building": "none", "fence": "none", "gate": "none",
+    "wall": "none", "building": "none", "fence": "none", "gate": "none", "rail": "none",
     "bench": "none", "trash_can": "none", "recycling_bin": "none", "bike_rack": "none",
     "skateboard_rack": "none", "bike_share_dock": "none", "emergency_call_box": "none",
     "ev_charger": "none", "mailbox": "none", "bulletin_board": "none", "art_piece": "none",
@@ -34,7 +34,8 @@ COLLISION = {
 # tree -> trunk (bark) only; the leaves are not.
 PART_RULES = {("tree", "bark"): "none"}
 # Shared models (one prototype, many placements) are single compact objects.
-MODEL_COLLISION = {"bench": "convexHull", "street_light": "convexHull", "trash_can": "convexHull"}
+MODEL_COLLISION = {"bench": "convexHull", "street_light": "convexHull", "trash_can": "convexHull",
+                   "art_piece": "convexHull"}
 
 # Rubber on surface: (static friction range, roughness in mm range, wet multiplier).
 SURFACES = {

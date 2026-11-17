@@ -213,6 +213,7 @@ Slope lowers a level: a walkway steeper than 8.3 % is conditional, steeper than 
 - **People** (`agents.py`): head, hair, neck, torso, arms with elbows, legs with knees, shoes (often shorts), backpacks, a walking stride; about 450 triangles each.
 - **Furniture** (`furniture.py`): drum-shade lamp poles at UH's surveyed pole positions, white slotted trash cans.
 - **Ground**: slab joints every 3 m in the concrete texture, running-bond brick pavers inside `paving.yaml` regions, curbs, walls and stairs no longer streaked.
+- **Sculptures and seating** (`monuments.py`, `furniture.py`): the twelve outdoor art pieces nearest the route at UH's surveyed points, wood-slat benches and picnic tables by UH's seating type, green terrace stairs and stair handrails where photos show them. Sizes are estimates from photos unless a title gives them (Krypton).
 - **Light** (explorer): a physical sky with the sun where it is over Honolulu at the chosen time, shadows, and a wet-pavement switch (**V**).
 - **Route focus**: `build-explorer --focus 260` keeps what lies within 260 m of the route, so the hosted page's 64 MiB goes to the ground the rover drives on.
 

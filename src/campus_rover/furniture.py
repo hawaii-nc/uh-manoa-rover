@@ -72,3 +72,45 @@ def slotted_trash_can() -> Asset:
                   Primitive(sv, sf, None, (0.15, 0.16, 0.16))],
                  {"source": "drawn for this project", "licence": "own work",
                   "from": "UH photo 1055_03"})
+
+
+def _box(center, size):
+    sx, sy, sz = (v / 2 for v in size)
+    v = np.array([[x * sx, y * sy, z * sz] for z in (-1, 1) for y in (-1, 1) for x in (-1, 1)])
+    f = [(0, 2, 1), (1, 2, 3), (4, 5, 6), (5, 7, 6), (0, 1, 4), (1, 5, 4), (2, 6, 3), (3, 6, 7),
+         (0, 4, 2), (2, 4, 6), (1, 3, 5), (3, 7, 5)]
+    return v + np.asarray(center), np.array(f)
+
+
+def slat_bench() -> Asset:
+    """A wood-slat bench on a steel frame, 1.8 m long: the benches around the Campus Center
+    lawn (UH photos 1055_01, 1055_03)."""
+    wood, steel = [], []
+    for k in range(5):                                       # seat slats
+        wood.append(_box((0, -0.18 + 0.09 * k, 0.45), (1.8, 0.07, 0.05)))
+    for k in range(3):                                       # back slats
+        wood.append(_box((0, -0.24, 0.62 + 0.1 * k), (1.8, 0.03, 0.07)))
+    for x in (-0.78, 0.78):
+        steel.append(_box((x, 0, 0.22), (0.05, 0.5, 0.44)))
+        steel.append(_box((x, -0.24, 0.62), (0.05, 0.05, 0.5)))
+    wv, wf = _join(wood)
+    sv, sf = _join(steel)
+    return Asset("bench_slat", "bench", [Primitive(wv, wf, None, (0.50, 0.30, 0.18)),
+                                         Primitive(sv, sf, None, (0.62, 0.64, 0.66))],
+                 {"source": "drawn for this project", "licence": "own work",
+                  "from": "UH photos 1055_01, 1055_03"})
+
+
+def picnic_table() -> Asset:
+    """A wooden picnic table with attached benches (UH photos 1016_01, 1163_02)."""
+    parts = [_box((0, 0, 0.74), (1.8, 0.75, 0.05))]
+    for y in (-0.62, 0.62):
+        parts.append(_box((0, y, 0.44), (1.8, 0.26, 0.05)))
+    for x in (-0.7, 0.7):
+        parts.append(_box((x, 0, 0.37), (0.07, 1.5, 0.05)))
+        parts.append(_box((x - 0.0, -0.4, 0.37), (0.07, 0.06, 0.74)))
+        parts.append(_box((x - 0.0, 0.4, 0.37), (0.07, 0.06, 0.74)))
+    v, f = _join(parts)
+    return Asset("picnic_table", "bench", [Primitive(v, f, None, (0.34, 0.22, 0.14))],
+                 {"source": "drawn for this project", "licence": "own work",
+                  "from": "UH photos 1016_01, 1163_02"})

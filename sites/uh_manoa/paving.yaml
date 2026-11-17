@@ -12,3 +12,12 @@ regions:
       - https://map.hawaii.edu/images/MA/building_images/1055_03.jpg
       - https://map.hawaii.edu/images/MA/building_images/1055_04.jpg
     extent: approximate
+  - name: campus_center_terrace_stairs
+    class: stairs
+    material: green                 # the terrace steps are painted green (teal in the 2019 photo)
+    center: [622528, 2355628]       # the wide stairs between the building and the plaza
+    radius_m: 24
+    sources:
+      - https://map.hawaii.edu/images/MA/building_images/1055_01.jpg
+      - https://map.hawaii.edu/images/MA/building_images/1055_05.jpg
+    extent: approximate

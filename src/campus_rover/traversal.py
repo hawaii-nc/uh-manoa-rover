@@ -40,7 +40,7 @@ LEVELS = {
     "bench": BLOCKED, "trash_can": BLOCKED, "recycling_bin": BLOCKED, "bike_rack": BLOCKED,
     "skateboard_rack": BLOCKED, "bike_share_dock": BLOCKED, "emergency_call_box": BLOCKED,
     "ev_charger": BLOCKED, "mailbox": BLOCKED, "bulletin_board": BLOCKED, "art_piece": BLOCKED,
-    "street_light": BLOCKED, "fence": BLOCKED, "gate": CONDITIONAL,
+    "street_light": BLOCKED, "fence": BLOCKED, "gate": CONDITIONAL, "rail": BLOCKED,
     # things that move
     "person": DYNAMIC, "bicycle": DYNAMIC, "skateboard": DYNAMIC, "car": DYNAMIC,
     "cart": DYNAMIC, "chicken": DYNAMIC, "cat": DYNAMIC,

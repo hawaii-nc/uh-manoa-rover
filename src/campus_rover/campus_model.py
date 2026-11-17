@@ -304,6 +304,10 @@ def add_layer(model: CampusModel, spec: LayerSpec, features: list[dict]) -> None
                         extra[out_key] = _number(value) if out_key.endswith("_m") else str(value)
                 if extra.get("canopy_radius_m"):  # the source field is an area in m²
                     extra["canopy_radius_m"] = math.sqrt(extra["canopy_radius_m"] / math.pi)
+            if spec.role == "prop":
+                for key in ("TYPE", "Type"):
+                    if props.get(key) not in (None, ""):
+                        extra["type"] = str(props[key]).strip().lower()
             target = {
                 "tree": model.trees,
                 "prop": model.props,
