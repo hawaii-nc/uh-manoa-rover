@@ -572,7 +572,8 @@ def cmd_build_dataset(args) -> int:  # pragma: no cover - drives a browser
     site = load_site(args.site, args.sites_dir)
     camera_file = Path(args.camera) if args.camera else site.root / "camera.yaml"
     camera = CameraSpec.load(camera_file)
-    spec = DatasetSpec(frames=args.frames, spacing_m=args.spacing, seed=args.seed)
+    spec = DatasetSpec(frames=args.frames, spacing_m=args.spacing, seed=args.seed,
+                       supersample=args.supersample)
     if camera.placeholder:
         print(f"note: the camera in {camera_file} is a placeholder; put the rover's real "
               f"height, tilt, field of view and resolution there")
@@ -694,6 +695,8 @@ def build_parser() -> argparse.ArgumentParser:
     ds.add_argument("--frames", type=int, default=120)
     ds.add_argument("--spacing", type=float, default=3.0, help="meters between camera positions")
     ds.add_argument("--seed", type=int, default=7)
+    ds.add_argument("--supersample", type=int, default=2,
+                    help="draw the camera image at this multiple, then shrink (1 = fastest)")
     ds.set_defaults(func=cmd_build_dataset)
 
     data = sub.add_parser("fetch-world-data",

@@ -352,3 +352,28 @@ def readme(summary: dict, camera: CameraSpec) -> str:
         warning=PLACEHOLDER_WARNING if camera.placeholder else "", frames=summary["frames"],
         train=c["train"], val=c["val"], test=c["test"], width=camera.width, height=camera.height,
         intrinsics=json.dumps(summary["intrinsics"]))
+
+
+# ---- reading a dataset back -------------------------------------------------------------------
+
+
+def frame_ids(root: Path, split: str) -> list[str]:
+    """Frame ids of one split ("train", "val" or "test")."""
+    return json.loads((Path(root) / "splits.json").read_text())[split]
+
+
+def load_frame(root: Path, frame_id: str) -> dict:
+    """One frame as arrays: `rgb` (H, W, 3 uint8), `sem` (H, W uint8 class ids), `trav` (H, W
+    uint8), `depth_m` (H, W float32 meters, NaN beyond 65 m) and `meta` (the metadata record)."""
+    from PIL import Image
+
+    root = Path(root)
+    frames = root / "frames"
+    depth = np.asarray(Image.open(frames / f"{frame_id}_depth.png")).astype(np.float32)
+    depth_m = np.where(depth >= 65535, np.nan, depth / 1000.0).astype(np.float32)
+    meta = next(json.loads(line) for line in (root / "metadata.jsonl").read_text().splitlines()
+                if json.loads(line)["id"] == frame_id)
+    return {"rgb": np.asarray(Image.open(frames / f"{frame_id}_rgb.jpg").convert("RGB")),
+            "sem": np.asarray(Image.open(frames / f"{frame_id}_sem.png")),
+            "trav": np.asarray(Image.open(frames / f"{frame_id}_trav.png")),
+            "depth_m": depth_m, "meta": meta}

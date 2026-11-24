@@ -13,11 +13,14 @@ from campus_rover.dataset import (
     assign_places,
     class_fractions,
     decode_depth_mm,
+    frame_ids,
     heading_of,
     jitter_pose,
+    load_frame,
     pick_frames,
     readme,
     route_samples,
+    write_outputs,
 )
 
 LEG = [[0.0, 0.0, 0.0], [0.0, 0.0, -10.0], [10.0, 0.0, -10.0]]       # north 10 m, then east 10 m
@@ -124,3 +127,23 @@ def test_a_small_dataset_is_drawn_in_a_browser(tmp_path):
     trav = np.asarray(Image.open(tmp_path / "d" / "frames" / "00000_trav.png"))
     assert set(np.unique(trav).tolist()) <= {0, 1, 2, 3, 255}
     assert (tmp_path / "d" / "README.md").exists()
+
+
+def test_a_dataset_reads_back_as_arrays_with_depth_in_meters(tmp_path):
+    from PIL import Image
+
+    (tmp_path / "frames").mkdir()
+    Image.fromarray(np.full((4, 6, 3), 90, np.uint8)).save(tmp_path / "frames" / "00000_rgb.jpg")
+    Image.fromarray(np.full((4, 6), 3, np.uint8)).save(tmp_path / "frames" / "00000_sem.png")
+    Image.fromarray(np.full((4, 6), 2, np.uint8)).save(tmp_path / "frames" / "00000_trav.png")
+    depth = np.full((4, 6), 1500, np.uint16)
+    depth[0, 0] = 65535
+    Image.fromarray(depth).save(tmp_path / "frames" / "00000_depth.png")
+    rows = [{"id": "00000", "split": "train", "place": 0, "traversable_share": 1.0}]
+    write_outputs(tmp_path, rows, [{"id": 3, "name": "walkway", "level": "traversable"}],
+                  CameraSpec(), DatasetSpec(), 0, {0: "train"})
+    assert frame_ids(tmp_path, "train") == ["00000"] and frame_ids(tmp_path, "test") == []
+    f = load_frame(tmp_path, "00000")
+    assert f["rgb"].shape == (4, 6, 3) and f["sem"].dtype == np.uint8 and f["trav"][0, 0] == 2
+    assert f["depth_m"][1, 1] == pytest.approx(1.5) and np.isnan(f["depth_m"][0, 0])
+    assert f["meta"]["place"] == 0

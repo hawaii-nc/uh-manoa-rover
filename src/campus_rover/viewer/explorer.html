@@ -259,6 +259,7 @@ function sunDirection(hour, date = new Date()) {
   return { el, az, dir: new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)) };   // x east, y up, z south
 }
 let skyEnv = null;
+const envCache = new Map();
 function setTime(hour) {
   const { el, dir } = sunDirection(hour);
   const e = Math.max(el, 0.04);
@@ -269,10 +270,13 @@ function setTime(hour) {
   hemi.intensity = 0.3 + 0.35 * Math.min(1, Math.sin(e) * 2);
   scene.fog.color.setHSL(0.58, 0.45, 0.55 + 0.25 * Math.min(1, Math.sin(e) * 2));
   skyColor.copy(scene.fog.color);
-  if (skyEnv) skyEnv.dispose();
-  const probe = new THREE.Scene(); const s2 = new Sky(); s2.scale.setScalar(6000);
-  for (const k of Object.keys(sky.material.uniforms)) s2.material.uniforms[k].value = sky.material.uniforms[k].value;
-  probe.add(s2); skyEnv = pmrem.fromScene(probe, 0.02); s2.geometry.dispose();
+  const key = Math.round(hour * 100);                        // one sky environment per time, drawn once
+  if (!envCache.has(key)) {
+    const probe = new THREE.Scene(); const s2 = new Sky(); s2.scale.setScalar(6000);
+    for (const k of Object.keys(sky.material.uniforms)) s2.material.uniforms[k].value = sky.material.uniforms[k].value;
+    probe.add(s2); envCache.set(key, pmrem.fromScene(probe, 0.02)); s2.geometry.dispose();
+  }
+  skyEnv = envCache.get(key);
   scene.environment = skyEnv.texture; scene.environmentIntensity = 0.28;
   renderer.toneMappingExposure = 0.42 + 0.38 * Math.min(1, Math.sin(e) * 2);
 }

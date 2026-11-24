@@ -48,3 +48,15 @@ boundary; for a stricter test leave a place or two unused between them.
   trained only on this.
 - Not simulated yet: lens distortion, rolling shutter, motion blur, rain on the lens. They belong in the camera
   settings once the real camera is known.
+
+## Reading it
+
+```python
+from campus_rover.dataset import frame_ids, load_frame
+
+for fid in frame_ids("out/dataset", "train"):
+    f = load_frame("out/dataset", fid)       # f["rgb"], f["sem"], f["trav"], f["depth_m"], f["meta"]
+```
+
+`depth_m` is in meters with NaN beyond 65 m. Wrap this in a PyTorch or TensorFlow dataset as you like; the
+files are plain PNG and JPEG.
