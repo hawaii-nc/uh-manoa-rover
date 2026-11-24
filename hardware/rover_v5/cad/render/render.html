@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head>
+<body><script type="module">
+import * as THREE from './three.module.min.js';
+const R = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+R.setPixelRatio(1); document.body.appendChild(R.domElement);
+const cache = {};
+async function load(prefix){
+  if (cache[prefix]) return cache[prefix];
+  const man = await (await fetch('/' + prefix + '.json')).json();
+  const buf = await (await fetch('/' + prefix + '.bin')).arrayBuffer();
+  const geos = {};
+  for (const m of man){
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(buf, m.voff, m.vn*3), 3));
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(buf, m.toff, m.tn), 1));
+    g.computeVertexNormals(); geos[m.name] = g;
+  }
+  return cache[prefix] = geos;
+}
+// scene spec: {w,h, sources:[prefix..], items:[{src,name,color,opacity,edges}], cam:{pos,target,up,fov|ortho}, labels:[{text,at:[x,y,z]}]}
+window.renderScene = async (spec) => {
+  R.setSize(spec.w, spec.h);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(spec.bg || '#ffffff');
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.6));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.6); d1.position.set(400, 300, 900); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.6); d2.position.set(-500, -400, 300); scene.add(d2);
+  const box = new THREE.Box3();
+  for (const it of spec.items){
+    const geos = await load(it.src);
+    const g = geos[it.name]; if (!g) { console.log('missing', it.name); continue; }
+    const op = it.opacity ?? 1;
+    const mat = new THREE.MeshStandardMaterial({color: it.color || '#c8ccd2', metalness: 0.05, roughness: 0.75,
+        transparent: op < 1, opacity: op, depthWrite: op >= 1, side: THREE.DoubleSide,
+        polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1});
+    const mesh = new THREE.Mesh(g, mat); if (it.offset) mesh.position.set(...it.offset); scene.add(mesh);
+    if (it.edges !== false && op > 0.2){
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, it.edgeAngle || 25),
+        new THREE.LineBasicMaterial({color: it.edgeColor || '#1b1d22', transparent: op < 1, opacity: Math.min(1, op + 0.1)}));
+      if (it.offset) e.position.set(...it.offset);
+      scene.add(e);
+    }
+    if (it.fit !== false) { g.computeBoundingBox(); const bb = g.boundingBox.clone(); if (it.offset) bb.translate(new THREE.Vector3(...it.offset)); box.union(bb); }
+  }
+  const c = spec.cam; let cam;
+  const tgt = new THREE.Vector3(...(c.target || box.getCenter(new THREE.Vector3()).toArray()));
+  const dir = new THREE.Vector3(...c.dir).normalize();
+  const size = box.getSize(new THREE.Vector3()).length() * (c.zoom || 1);
+  if (c.ortho){
+    const asp = spec.w / spec.h, hh = size * 0.5;
+    cam = new THREE.OrthographicCamera(-hh*asp, hh*asp, hh, -hh, -10000, 10000);
+  } else {
+    cam = new THREE.PerspectiveCamera(c.fov || 30, spec.w / spec.h, 1, 20000);
+  }
+  const dist = c.ortho ? 3000 : size / (2 * Math.tan((c.fov || 30) * Math.PI / 360));
+  cam.position.copy(tgt.clone().add(dir.multiplyScalar(dist)));
+  cam.up.set(...(c.up || [0,0,1])); cam.lookAt(tgt);
+  R.render(scene, cam);
+  // project labels to screen
+  const labels = (spec.labels || []).map(l => {
+    const v = new THREE.Vector3(...l.at).project(cam);
+    return {text: l.text, x: (v.x + 1) / 2 * spec.w, y: (1 - v.y) / 2 * spec.h};
+  });
+  return {png: R.domElement.toDataURL('image/png'), labels};
+};
+window.ready = true;
+</script></body></html>

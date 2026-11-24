@@ -39,6 +39,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+# hardware/ holds standalone CAD scripts (build123d, local CAD files); not part of the package
+extend-exclude = ["hardware"]
 target-version = "py310"
 
 [tool.ruff.lint]
