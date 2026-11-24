@@ -216,7 +216,7 @@ import { Sky } from './vendor/Sky.js';
 const q = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: q.has('shot') });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.get('aa') !== '0', preserveDrawingBuffer: q.has('shot') });   // ?aa=0 for exact label images
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1020,6 +1020,69 @@ function hud() {
   $('hud').innerHTML = t;
 }
 
+// ---------------------------------------------------------------- dataset rendering
+// `campus-rover build-dataset` drives this from a browser. A frame is drawn four ways from one camera:
+// the real look, a class image, a rover-can-go image and a depth image. The three label images
+// are flat unlit colours, no anti-aliasing and no fog (load with ?aa=0), so every pixel is exactly
+// a class id, a level code or a depth in millimetres.
+function makeDatasetApi() {
+  const classes = [...new Set([...Object.keys(D.levels.levels), ...meshes.map((m) => m.userData.cls)])].sort();
+  const id = Object.fromEntries(classes.map((c, i) => [c, i + 1]));            // 0 = sky / nothing
+  const LEVEL = { blocked: 0, conditional: 1, traversable: 2, dynamic: 3 };
+  const vert = 'varying vec2 vUv; varying float vDepth; void main() { vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDepth = -mv.z; gl_Position = projectionMatrix * mv; }';
+  const frags = {
+    flat: 'uniform sampler2D map; uniform float hasMap; uniform float cut; uniform float code; varying vec2 vUv; varying float vDepth; void main() { if (hasMap > 0.5 && texture2D(map, vUv).a < max(cut, 0.01)) discard; gl_FragColor = vec4(vec3(code / 255.0), 1.0); }',
+    depth: 'uniform sampler2D map; uniform float hasMap; uniform float cut; uniform float code; varying vec2 vUv; varying float vDepth; void main() { if (hasMap > 0.5 && texture2D(map, vUv).a < max(cut, 0.01)) discard; float mm = clamp(floor(vDepth * 1000.0 + 0.5), 0.0, 65535.0); float hi = floor(mm / 256.0); gl_FragColor = vec4(hi / 255.0, (mm - hi * 256.0) / 255.0, 0.0, 1.0); }',
+  };
+  const passMat = new Map();
+  const made = (m, kind, code) => {
+    const key = m.uuid + kind + code;
+    if (!passMat.has(key)) passMat.set(key, new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frags[kind === 'depth' ? 'depth' : 'flat'],
+      uniforms: { map: { value: m.map || null }, hasMap: { value: m.map ? 1 : 0 }, cut: { value: m.alphaTest || 0 }, code: { value: code } }, side: m.side }));
+    return passMat.get(key);
+  };
+  const overlays = [routeGroup, checkGroup, markGroup, netMesh, candMesh];
+  const hide = [...overlays, sky];
+  let saved = null;
+  const bg = { sem: 0, trav: 255 };
+  return {
+    classes: () => classes.map((c) => ({ id: id[c], name: c, level: D.levels.levels[c] ?? 'blocked' })),
+    setView({ x, z, yaw, pitch, eye, hfov, aspect }) {
+      setMode('rover');
+      if (!stand(x, z, yaw, pitch)) return false;
+      state.eye = eye; placeCamera();
+      camera.fov = 2 * Math.atan(Math.tan(hfov * Math.PI / 360) / aspect) * 180 / Math.PI;
+      camera.aspect = aspect; camera.near = 0.05; camera.updateProjectionMatrix();
+      return { x: state.x, z: state.z, foot: state.foot };
+    },
+    // light for the real look: hour, wet pavement, exposure scale, people on or off
+    setLook({ hour, wet: w, exposure, agents }) {
+      setTime(hour); if (w !== wet) { wet = w; applyWet(); }
+      renderer.toneMappingExposure *= exposure;
+      if (agentsRoot) agentsRoot.visible = agents;
+    },
+    pass(kind) {                     // 'real' | 'sem' | 'trav' | 'depth'
+      if (saved) { for (const [m, mat] of saved) m.material = mat; scene.fog = saved.fog; scene.background = saved.bg; hide.forEach((o, i) => { o.visible = saved.vis[i]; }); saved = null; }
+      overlays.forEach((o) => { o.visible = false; });          // markers, route and network never appear in a camera image
+      if (kind === 'real') return;
+      saved = new Map(meshes.map((m) => [m, m.material])); saved.fog = scene.fog; saved.bg = scene.background; saved.vis = hide.map((o) => o.visible);
+      hide.forEach((o) => { o.visible = false; });
+      scene.fog = null;
+      scene.background = new THREE.Color(kind === 'depth' ? 0xffff00 : 0).setRGB(...(kind === 'depth' ? [1, 1, 0] : [bg[kind] / 255, bg[kind] / 255, bg[kind] / 255]), THREE.LinearSRGBColorSpace);
+      for (const m of meshes) {
+        const cls = m.userData.cls;
+        m.material = made(m.userData.real, kind, kind === 'sem' ? id[cls] : kind === 'trav' ? (LEVEL[D.levels.levels[cls] ?? 'blocked'] ?? 0) : 0);
+      }
+    },
+    render(w, h, ratio = 1) {        // draws and returns the canvas as a PNG data URL
+      renderer.setPixelRatio(ratio); renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      return canvas.toDataURL('image/png');
+    },
+  };
+}
+
 async function main() {
   try {
     D = await (await fetch('data.json')).json();
@@ -1054,6 +1117,8 @@ async function main() {
   if (q.has('building')) openBuilding(q.get('building'), true);
   if (q.has('tab')) setTab(q.get('tab'));
   window.__explorer = { state, D, camera, orbit, groundAt, gradeAt, stand, setMode, select, scene, renderer, meshes, buildingAt, keys, walk, hud };
+  window.__dataset = makeDatasetApi();
+
   window.__ready = true;
 }
 requestAnimationFrame(frame);

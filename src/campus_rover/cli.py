@@ -565,6 +565,24 @@ def cmd_build_explorer(args) -> int:
     return 0
 
 
+def cmd_build_dataset(args) -> int:  # pragma: no cover - drives a browser
+    """Render training images along the route with class, traversability and depth labels."""
+    from .dataset import CameraSpec, DatasetSpec, build_dataset
+
+    site = load_site(args.site, args.sites_dir)
+    camera_file = Path(args.camera) if args.camera else site.root / "camera.yaml"
+    camera = CameraSpec.load(camera_file)
+    spec = DatasetSpec(frames=args.frames, spacing_m=args.spacing, seed=args.seed)
+    if camera.placeholder:
+        print(f"note: the camera in {camera_file} is a placeholder; put the rover's real "
+              f"height, tilt, field of view and resolution there")
+    out = Path(args.out)
+    summary = build_dataset(Path(args.explorer), out, camera, spec, progress=print)
+    print(f"dataset: {summary['frames']} frames ({summary['skipped']} skipped) "
+          f"{summary['split_counts']} -> {out}")
+    return 0
+
+
 def cmd_build_model(args) -> int:
     site = load_site(args.site, args.sites_dir)
     model = site.load_model()
@@ -665,6 +683,18 @@ def build_parser() -> argparse.ArgumentParser:
                       help="store the 3D files as base64 text chunks, for page hosts that "
                            "serve only text, images and fonts")
     expl.set_defaults(func=cmd_build_explorer)
+
+    ds = sub.add_parser("build-dataset",
+                        help="render training images with class, traversability and depth labels")
+    ds.add_argument("--site", required=True)
+    ds.add_argument("--explorer", required=True,
+                    help="a folder from build-explorer (not --hosted)")
+    ds.add_argument("--out", required=True, help="output folder")
+    ds.add_argument("--camera", help="camera yaml (default: sites/<site>/camera.yaml)")
+    ds.add_argument("--frames", type=int, default=120)
+    ds.add_argument("--spacing", type=float, default=3.0, help="meters between camera positions")
+    ds.add_argument("--seed", type=int, default=7)
+    ds.set_defaults(func=cmd_build_dataset)
 
     data = sub.add_parser("fetch-world-data",
                           help="download walkways, roads, footprints and lidar for build-world")

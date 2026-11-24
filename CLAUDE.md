@@ -8,6 +8,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 - Check: `pytest -q && ruff check .` (line length 100; both must pass before a commit)
 - Route planner: `campus-rover plan --site demo_campus --route A --time "Mon 09:20"`
 - 3D world: `campus-rover build-world --site uh_manoa --out out/uh_manoa --scenario class_change` (needs `fetch-layers` and `fetch-world-data` first; `demo_campus` needs neither)
+- Training dataset (images with class, traversability and depth labels along the route): `campus-rover build-dataset --site uh_manoa --explorer out/explorer --out out/dataset --frames 200` (needs `pip install playwright`; the camera is `sites/uh_manoa/camera.yaml`, placeholders until the rover's numbers are in)
 - Map explorer (a page to walk through and check the model): `campus-rover build-explorer --site uh_manoa --out out/explorer --scenario class_change`, then `campus-rover view --dir out/explorer`
 
 ## Map of the code
@@ -20,6 +21,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Campus model | `campus_model.py` (buildings, trees, props, closures) |
 | Rover network | `crossings.py` (crossings by evidence tier), `walknet.py` (surveyed walkway network, ramps as path, stairs by treads), `traversal.py` (traversable / conditional / blocked labels, slope and cost maps), `physics.py` (collision policy, friction), `planner.py` (`blockers` diagnosis) |
 | 3D world | `plans.py` (read floor-plan sheets, fit them onto the lidar roof) + `planbuild.py` (build floors from a layout), `world.py` (assemble + GLB/USD export), `ground.py` (surfaces, curbs, stairs, walls from land cover), `massing.py` (roof levels from lidar), `style.py` + `buildgen.py` (facades), `assets.py` (free models placed as shared instances), `agents.py`, `meshkit.py`, `textures/` (CC0, see `textures.json`), `viewer/` |
+| Dataset | `dataset.py` (route sampling, poses, place splits, browser driver), the `window.__dataset` API in `viewer/explorer.html`, `docs/DATASET.md` |
 | Explorer page | `explorer.py` (split GLBs, `data.json`: network, routes, buildings, things to check) + `viewer/explorer.html` |
 | Plants and furniture | `vegetation.py` (species-shaped trees, ground cover, leaf textures drawn here), `furniture.py` (lamp, trash can read from photos); route photo notes in `docs/ROUTE_PHOTOS.md` |
 | Older flat export | `usd_export.py`, `viz.py` |

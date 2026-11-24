@@ -1,0 +1,17 @@
+# The rover's camera, used by `campus-rover build-dataset`.
+#
+# PLACEHOLDER VALUES: nobody has measured the real rover yet. Replace them with the real
+# numbers, set `placeholder: false`, and build the dataset again: a model trained on these
+# values expects a camera that does not exist.
+height_m: 0.7            # lens above the ground
+tilt_deg: 0.0            # + looks up
+hfov_deg: 90.0           # horizontal field of view
+width: 640
+height: 480
+# Errors a real rover makes on the path (the camera is moved by a random amount within these):
+height_jitter_m: 0.04
+tilt_jitter_deg: 3.0
+yaw_jitter_deg: 20.0     # heading error against the route
+lateral_jitter_m: 0.5    # sideways error on the path
+placeholder: true
+note: "Placeholder camera, not the real rover."

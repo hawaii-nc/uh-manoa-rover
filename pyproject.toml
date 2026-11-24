@@ -17,6 +17,8 @@ dependencies = [
 viz = ["matplotlib>=3.8"]
 osm = ["osmnx>=2.0"]
 usd = ["usd-core>=25.5"]
+# Draws the training dataset: a browser driver (any Chromium; a GPU makes it fast).
+dataset = ["playwright>=1.40"]
 # 3D world builder. `world-data` adds what is only needed to download lidar and map data.
 world = ["numpy>=1.26", "scipy>=1.11", "shapely>=2.0", "mapbox-earcut>=1.0", "trimesh>=4.0",
          "pillow>=10.0", "usd-core>=25.5"]
