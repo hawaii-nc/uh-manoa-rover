@@ -323,6 +323,7 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
                         z_at(x, y), yaw)
         else:
             add_car(scene, "agents/cars", x, y, z_at(x, y), yaw, rng)
+            scene.record("agent", "car", x, y, z_at(x, y), yaw, cls="car")
 
     # People (and riders) along walkways, as many as the crowd model expects.
     for u, v, data in graph.g.edges(data=True):
@@ -344,14 +345,20 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
             roll = rng.random()
             if data.get("kind") != "stairs" and roll < scenario.wheeled_share * 0.6:
                 add_bicycle(scene, "agents/bicycles", px, py, z_at(px, py), heading, rng)
+                scene.record("agent", "cyclist", px, py, z_at(px, py), heading, cls="bicycle",
+                             activity="riding", path=data.get("kind"))
                 counts["bicycle"] += 1
                 counts["person"] += 1
             elif data.get("kind") != "stairs" and roll < scenario.wheeled_share:
                 add_skateboarder(scene, "agents/skateboards", px, py, z_at(px, py), heading, rng)
+                scene.record("agent", "skateboarder", px, py, z_at(px, py), heading,
+                             cls="skateboard", activity="riding", path=data.get("kind"))
                 counts["skateboard"] += 1
                 counts["person"] += 1
             else:
                 add_person(scene, "agents/people", px, py, z_at(px, py), heading, rng)
+                scene.record("agent", "person", px, py, z_at(px, py), heading, cls="person",
+                             activity="walking", path=data.get("kind"))
                 counts["person"] += 1
 
     # Parked bikes at bike racks.
@@ -362,6 +369,8 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
                 px, py = _local(prop.xy[0], prop.xy[1], base, 0.0, (i - 1.5) * 0.55)
                 add_bicycle(scene, "agents/bicycles", px, py, z_at(px, py),
                             base + math.pi / 2, rng, rider=False)
+                scene.record("agent", "parked_bicycle", px, py, z_at(px, py), base + math.pi / 2,
+                             cls="bicycle", activity="parked")
                 counts["bicycle"] += 1
 
     # Cars: parked in mapped stalls, and a few driving on the roads.
@@ -406,6 +415,8 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
         t = rng.uniform(0.2, 0.8)
         px, py = ax + (bx - ax) * t, ay + (by - ay) * t
         add_cart(scene, "agents/carts", px, py, z_at(px, py), math.atan2(by - ay, bx - ax), rng)
+        scene.record("agent", "cart", px, py, z_at(px, py), math.atan2(by - ay, bx - ax),
+                     cls="cart")
         counts["cart"] += 1
     placed, tries = 0, 0
     while placed < scenario.chickens + scenario.cats and tries < 4000 and walk_edges:
@@ -418,9 +429,11 @@ def populate(scene: Scene, site, graph, model, ground_z, bbox, scenario: Scenari
         yaw = rng.uniform(0, 2 * math.pi)
         if placed < scenario.chickens:
             add_chicken(scene, "agents/animals", px, py, z_at(px, py), yaw, rng)
+            scene.record("agent", "chicken", px, py, z_at(px, py), yaw, cls="chicken")
             counts["chicken"] += 1
         else:
             add_cat(scene, "agents/animals", px, py, z_at(px, py), yaw, rng)
+            scene.record("agent", "cat", px, py, z_at(px, py), yaw, cls="cat")
             counts["cat"] += 1
         placed += 1
     return counts

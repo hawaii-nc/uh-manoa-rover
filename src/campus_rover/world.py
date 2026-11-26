@@ -647,6 +647,12 @@ def build_world(site, scenario=None, route_key: str | None = None,
                           float(p.get("trunk_diameter_m") or 0.3), p.get("species"),
                           str(p.get("family") or ""), str(p.get("habit") or ""),
                           _seed(round(x, 1), round(y, 1)), lod=0 if near else 1)
+        scene.record("tree", arch, x, y, z, (_seed(round(x, 1), round(y, 1)) % 360) * math.pi / 180,
+                     species=p.get("species"), family=p.get("family"), habit=p.get("habit"),
+                     height_m=round(height, 2), crown_radius_m=round(radius, 2),
+                     trunk_diameter_m=float(p.get("trunk_diameter_m") or 0.3),
+                     size_from=("surveyed" if p.get("height_m") else "lidar" if has_lidar
+                                else "default"))
         tree_shapes[arch] = tree_shapes.get(arch, 0) + 1
         n_trees += 1
 
@@ -671,6 +677,9 @@ def build_world(site, scenario=None, route_key: str | None = None,
                 place_ground_cover(scene, veg_cache, str(kind), float(x), float(y),
                                    float(rasters.ground_z(x, y)), _seed(round(x, 1), round(y, 1)),
                                    lod=0 if d_route < 45 else 1)
+                scene.record("plant", str(kind), x, y, float(rasters.ground_z(x, y)),
+                             (_seed(round(x, 1), round(y, 1)) % 360) * math.pi / 180,
+                             source="planter bed, mix from UH photos")
                 n_plants += 1
 
     from .assets import load_assets
@@ -692,6 +701,8 @@ def build_world(site, scenario=None, route_key: str | None = None,
             piece = monument_for(prop.name, monument_cache)
             if piece is not None:
                 scene.place(piece, "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+                scene.record("art", piece.name, x, y, z, (_seed(x, y) % 8) * math.pi / 4,
+                             title=prop.name, size_m=[round(float(v), 2) for v in piece.size])
                 n_props["art_piece"] = n_props.get("art_piece", 0) + 1
                 n_models["monuments"] = n_models.get("monuments", 0) + 1
                 if "varney" in (prop.name or "").lower():       # the fountain's round hedge
@@ -700,17 +711,26 @@ def build_world(site, scenario=None, route_key: str | None = None,
                         hx, hy = x + 7.4 * math.cos(a), y + 7.4 * math.sin(a)
                         place_ground_cover(scene, veg_cache, "bush", hx, hy,
                                            float(rasters.ground_z(hx, hy)), k, lod=0)
+                        scene.record("plant", "bush", hx, hy, float(rasters.ground_z(hx, hy)),
+                                     a, source="Varney fountain hedge, UH photo")
             continue
         if prop.cls == "bench" and prop.props.get("type") == "table":
             scene.place(table_model, "props", x, y, z, (_seed(x, y) % 8) * math.pi / 4)
+            scene.record("prop", "picnic_table", x, y, z, (_seed(x, y) % 8) * math.pi / 4,
+                         cls="bench", model=table_model.name,
+                         size_m=[round(float(v), 2) for v in table_model.size])
             n_props["picnic_table"] = n_props.get("picnic_table", 0) + 1
             continue
         if prop.cls in prop_models:        # a real model exists for this kind of object
             scene.place(prop_models[prop.cls], "props", x, y, z,
                         (_seed(x, y) % 8) * math.pi / 4)
+            scene.record("prop", prop.cls, x, y, z, (_seed(x, y) % 8) * math.pi / 4,
+                         cls=prop.cls, model=prop_models[prop.cls].name,
+                         size_m=[round(float(v), 2) for v in prop_models[prop.cls].size])
             n_models[prop.cls] = n_models.get(prop.cls, 0) + 1
             n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
         elif add_prop(scene, prop.cls, x, y, z, _seed(x, y)):
+            scene.record("prop", prop.cls, x, y, z, (_seed(x, y) % 8) * math.pi / 4, cls=prop.cls)
             n_props[prop.cls] = n_props.get(prop.cls, 0) + 1
     # Street lights only where the campus surveyed one, and only with a real model.
     poles = cfg.light_poles or {}
@@ -736,6 +756,9 @@ def build_world(site, scenario=None, route_key: str | None = None,
             angle = props.get(poles.get("angle_field", "ANGLE")) or 0.0
             scene.place(lamp, "props", x, y, float(rasters.ground_z(x, y)),
                         math.radians(90.0 - float(angle)), scale=height / float(lamp.size[2]))
+            scene.record("prop", "street_light", x, y, float(rasters.ground_z(x, y)),
+                         math.radians(90.0 - float(angle)), cls="street_light",
+                         model=lamp.name, height_m=round(float(height), 2), size_from="lidar")
             n_models["street_light"] = n_models.get("street_light", 0) + 1
 
     agents_scene, agent_counts = None, {}

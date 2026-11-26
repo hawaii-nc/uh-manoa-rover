@@ -1,0 +1,7 @@
+{
+  "name": "UHManoa.CampusRover.Editor",
+  "rootNamespace": "UHManoa.CampusRover.Editor",
+  "references": ["UHManoa.CampusRover"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

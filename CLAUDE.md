@@ -10,6 +10,7 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 - 3D world: `campus-rover build-world --site uh_manoa --out out/uh_manoa --scenario class_change` (needs `fetch-layers` and `fetch-world-data` first; `demo_campus` needs neither)
 - Training dataset (images with class, traversability and depth labels along the route): `campus-rover build-dataset --site uh_manoa --explorer out/explorer --out out/dataset --frames 200` (needs `pip install playwright`; the camera is `sites/uh_manoa/camera.yaml`, placeholders until the rover's numbers are in)
 - Map explorer (a page to walk through and check the model): `campus-rover build-explorer --site uh_manoa --out out/explorer --scenario class_change`, then `campus-rover view --dir out/explorer`
+- Unity export (labelled meshes + placements Unity dresses): `campus-rover build-unity --site uh_manoa --out out/unity_uh --scenario class_change`, then in Unity *Tools → Campus Rover → Import Export Folder…* (package in `unity/com.uhmanoa.campusrover`, see `docs/UNITY.md`)
 
 ## Map of the code
 
@@ -24,9 +25,10 @@ Camera-only campus rover project. Python package `campus_rover` (src layout), si
 | Dataset | `dataset.py` (route sampling, poses, place splits, browser driver), the `window.__dataset` API in `viewer/explorer.html`, `docs/DATASET.md` |
 | Explorer page | `explorer.py` (split GLBs, `data.json`: network, routes, buildings, things to check) + `viewer/explorer.html` |
 | Plants and furniture | `vegetation.py` (species-shaped trees, ground cover, leaf textures drawn here), `furniture.py` (lamp, trash can read from photos); route photo notes in `docs/ROUTE_PHOTOS.md` |
+| Unity | `unity_export.py` (geometry GLBs, placements, fallback models, classes, site frame) + `unity/com.uhmanoa.campusrover` (C# importer, Dress Map, randomizer); every placed thing is recorded with `Scene.record` in `world.py` / `agents.py` |
 | Older flat export | `usd_export.py`, `viz.py` |
 
-Docs: `docs/ROUTE_PHOTOS.md` (what UH's photos of the route show and what the model takes from them), `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
+Docs: `docs/UNITY.md` (Unity workflow), `docs/ROUTE_PHOTOS.md` (what UH's photos of the route show and what the model takes from them), `docs/SCOPE.md` (whole project), `docs/CAMPUS_3D_PLAN.md` (3D plan and progress), `docs/WORLD.md` (how the world is built, known limits).
 
 ## Data sourcing rule (set by the owner, mandatory)
 
@@ -55,5 +57,6 @@ Before generating any mesh, texture or attribute (building colours, door positio
 - Building looks live in `sites/<site>/buildings/<id>.yaml`. Change the sheet, not the generator, to fix one building. Every sheet needs a `sources` entry.
 - Coordinates are the site CRS in meters (UH: EPSG:32604), Z up. Exports recentre and record the offset.
 - Do not use Google Maps or Street View content (official API or unofficial downloaders), or Mixamo assets (see `docs/SCOPE.md` §3a, `docs/CAMPUS_3D_PLAN.md` §6 and `docs/WORLD.md`). The owner has asked for Street View once; the answer and the permitted alternatives are in `docs/WORLD.md`.
-- New 3D models go in `assets.py` with source and licence; CC0, MIT or similar only.
+- New 3D models built into the repo's world go in `assets.py` with source and licence; CC0, MIT or similar only.
+- Unity dressing (owner decision 2026-11-26): any free model may dress a placement, including Asset Store freebies. Each one's source and licence go in the Dress Map / `dress_log.json`; licences that limit use (engine-only, no redistribution) are marked `restricted`. A model changes the look only, never a position or size from the data.
 - This cloud environment cannot reach `overpass-api.de`; use `overture.py`. It has no GPU, so Isaac Sim cannot run here; previews are rendered with the bundled Three.js viewer in headless Chromium.

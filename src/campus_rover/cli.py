@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -565,6 +566,35 @@ def cmd_build_explorer(args) -> int:
     return 0
 
 
+def cmd_build_unity(args) -> int:
+    """Write the world for a game engine: labelled ground, structures and buildings as meshes,
+    and every tree, plant, prop and person as a placement the engine dresses with its own model."""
+    import yaml
+
+    from .agents import Scenario
+    from .unity_export import export_unity
+    from .world import build_world
+
+    site = load_site(args.site, args.sites_dir)
+    scenario = None
+    if args.scenario:
+        path = site.root / "scenarios" / f"{args.scenario}.yaml"
+        scenario = Scenario.from_dict(yaml.safe_load(path.read_text())) if path.exists() \
+            else Scenario(name=args.scenario)
+        scenario.people_scale *= args.people_scale
+    world = build_world(site, scenario, args.route, progress=lambda m: print(f"  {m}..."),
+                        lite=args.lite, focus_m=args.focus or None)
+    files = export_unity(site, world, Path(args.out), progress=lambda m: print(f"  {m}..."))
+    total = 0.0
+    for name, path in files.items():
+        size = path.stat().st_size / 1e6
+        total += size
+        print(f"  {name:<26}{size:>7.1f} MB")
+    n = len(json.loads((Path(args.out) / "placements.json").read_text())["placements"])
+    print(f"unity export: {total:.1f} MB, {n} placements in {args.out}")
+    return 0
+
+
 def cmd_build_dataset(args) -> int:  # pragma: no cover - drives a browser
     """Render training images along the route with class, traversability and depth labels."""
     from .dataset import CameraSpec, DatasetSpec, build_dataset
@@ -684,6 +714,19 @@ def build_parser() -> argparse.ArgumentParser:
                       help="store the 3D files as base64 text chunks, for page hosts that "
                            "serve only text, images and fonts")
     expl.set_defaults(func=cmd_build_explorer)
+
+    uni = sub.add_parser("build-unity",
+                         help="export the world for Unity: labelled meshes + placements to dress")
+    uni.add_argument("--site", required=True)
+    uni.add_argument("--out", required=True, help="output folder")
+    uni.add_argument("--scenario", help="add people/bikes/cars from scenarios/<name>.yaml")
+    uni.add_argument("--route", help="route key that defines the corridor (default: last)")
+    uni.add_argument("--focus", type=float, default=260.0,
+                     help="keep only what lies within this many meters of the route (0 = all)")
+    uni.add_argument("--people-scale", type=float, default=1.0, help="multiply the crowd")
+    uni.add_argument("--lite", action="store_true",
+                     help="textures on the ground only (smaller files)")
+    uni.set_defaults(func=cmd_build_unity)
 
     ds = sub.add_parser("build-dataset",
                         help="render training images with class, traversability and depth labels")

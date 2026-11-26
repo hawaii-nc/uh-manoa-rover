@@ -1,0 +1,12 @@
+{
+  "name": "com.uhmanoa.campusrover",
+  "version": "0.1.0",
+  "displayName": "UH Manoa Campus Rover",
+  "description": "Imports the campus-rover export (labelled ground, structures, buildings + placements) and dresses it with free models. The map data comes from the uh-manoa-rover repo; this package only builds the Unity scene from it.",
+  "unity": "6000.0",
+  "dependencies": {
+    "com.unity.cloud.gltfast": "6.0.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "author": { "name": "uh-manoa-rover" }
+}

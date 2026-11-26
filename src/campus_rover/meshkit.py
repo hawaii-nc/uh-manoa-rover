@@ -192,6 +192,10 @@ class Scene:
     meta: dict = field(default_factory=dict)
     assets: dict = field(default_factory=dict)       # name -> assets.Asset, stored once
     instances: list = field(default_factory=list)    # assets.Instance, one per placement
+    # What stands where, by meaning rather than mesh: one dict per tree, plant, prop or
+    # sculpture (kind, key, x, y, z, yaw and sizes). Simulators that dress the world with their
+    # own models (unity_export) read this instead of the meshes.
+    placements: list = field(default_factory=list)
 
     def place(self, asset, group: str, x: float, y: float, z: float, yaw: float = 0.0,
               scale: float = 1.0) -> None:
@@ -200,6 +204,13 @@ class Scene:
 
         self.assets[asset.name] = asset
         self.instances.append(Instance(asset.name, group, x, y, z, yaw, scale))
+
+    def record(self, kind: str, key: str, x: float, y: float, z: float, yaw: float = 0.0,
+               **attrs) -> None:
+        """Note one placed thing by meaning (see `placements`)."""
+        self.placements.append({"kind": kind, "key": key,
+                                "xyz": [round(float(x), 3), round(float(y), 3), round(float(z), 3)],
+                                "yaw": round(float(yaw), 4), **attrs})
 
     def mesh(self, group: str, cls: str, material: str) -> Mesh:
         if material not in self.materials:
