@@ -13,6 +13,7 @@ namespace UHManoa.CampusRover
         [Serializable]
         public class Entry
         {
+            [Tooltip("A class (walkway) or class|material from the export (walkway|ground_brick); the more specific entry wins")]
             public string className;
             [Tooltip("Number of mesh nodes with this class in the last import")]
             public int nodes;

@@ -250,8 +250,14 @@ namespace UHManoa.CampusRover.Editor
                 var parts = t.name.Split('|');
                 if (parts.Length != 3) continue;
                 string cls = parts[1];
-                counts[cls] = counts.TryGetValue(cls, out int n) ? n + 1 : 1;
-                var e = map.Find(cls);
+                // Ground and structures list class|material too (brick vs concrete walkway);
+                // buildings only by class (each building has its own colour materials).
+                bool fine = top.name == "ground" || top.name == "structures";
+                string full = cls + "|" + parts[2];
+                string key = fine ? full : cls;
+                counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+                var e = map.Find(full);
+                if (e == null || e.material == null) e = map.Find(cls);
                 if (e == null || e.material == null) continue;
                 float tile = nodeUv[t.name]?["uv_tile_m"]?.Type == JTokenType.Float ? (float)nodeUv[t.name]["uv_tile_m"] : 0f;
                 float scale = tile > 0f && e.textureSizeM > 0f ? tile / e.textureSizeM : 1f;
