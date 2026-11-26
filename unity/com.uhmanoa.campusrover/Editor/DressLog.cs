@@ -27,10 +27,22 @@ namespace UHManoa.CampusRover.Editor
                     ["source"] = e.source, ["licence"] = e.licence, ["restricted"] = e.restricted,
                 };
             }
+            var materials = new JObject();
+            var mm = AssetDatabase.LoadAssetAtPath<MaterialMap>(CampusImporter.MaterialMapPath);
+            foreach (var e in mm != null ? mm.entries : new System.Collections.Generic.List<MaterialMap.Entry>())
+            {
+                if (e.material == null) continue;
+                if (string.IsNullOrEmpty(e.source) || string.IsNullOrEmpty(e.licence)) missing++;
+                materials[e.className] = new JObject
+                {
+                    ["material"] = AssetDatabase.GetAssetPath(e.material), ["texture_size_m"] = e.textureSizeM,
+                    ["source"] = e.source, ["licence"] = e.licence, ["restricted"] = e.restricted,
+                };
+            }
             string path = Path.Combine(Path.GetDirectoryName(Application.dataPath), CampusImporter.ExportRoot, "dress_log.json");
-            File.WriteAllText(path, new JObject { ["kinds"] = kinds }.ToString());
+            File.WriteAllText(path, new JObject { ["kinds"] = kinds, ["materials"] = materials }.ToString());
             AssetDatabase.Refresh();
-            if (missing > 0) Debug.LogWarning($"{missing} kinds use a model with no source or licence written down.");
+            if (missing > 0) Debug.LogWarning($"{missing} models or materials have no source or licence written down.");
             Debug.Log($"Dress log written: {path}");
         }
     }

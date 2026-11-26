@@ -18,6 +18,7 @@ namespace UHManoa.CampusRover.Editor
         public const string ExportRoot = "Assets/CampusExport";
         public const string RootName = "UH Manoa (campus-rover)";
         public const string DressMapPath = ExportRoot + "/DressMap.asset";
+        public const string MaterialMapPath = ExportRoot + "/MaterialMap.asset";
         static readonly string[] LevelLayers = { "Traversable", "Conditional", "Blocked", "Dynamic" };
 
         [MenuItem("Tools/Campus Rover/Import Export Folder...")]
@@ -59,6 +60,10 @@ namespace UHManoa.CampusRover.Editor
             MeasureFrame(site, nodes.transform);
 
             var physMats = new Dictionary<string, PhysicsMaterial>();
+            string uvPath = Path.Combine(abs, "node_uv.json");
+            var nodeUv = File.Exists(uvPath) ? JObject.Parse(File.ReadAllText(uvPath)) : new JObject();
+            var matMap = LoadMaterialMap();
+            var matCounts = new Dictionary<string, int>();
             var geometry = new GameObject("Geometry").transform;
             geometry.SetParent(root.transform, false);
             foreach (string file in Directory.GetFiles(Path.Combine(abs, "geometry"), "*.glb").OrderBy(f => f))
@@ -68,7 +73,12 @@ namespace UHManoa.CampusRover.Editor
                 var go = Object.Instantiate(asset, geometry);
                 go.name = Path.GetFileNameWithoutExtension(file);
                 LabelGeometry(go.transform, classes, physMats, dest);
+                ApplyMaterials(go.transform, matMap, nodeUv, matCounts);
             }
+
+            foreach (var kv in matCounts) matMap.GetOrAdd(kv.Key).nodes = kv.Value;
+            matMap.entries.Sort((a, b) => b.nodes.CompareTo(a.nodes));
+            EditorUtility.SetDirty(matMap);
 
             var protoRoot = BuildPrototypes(dest, root.transform);
             var dress = LoadDressMap(placementDoc);
@@ -215,6 +225,66 @@ namespace UHManoa.CampusRover.Editor
                     mc.sharedMaterial = MaterialFor(cls, classes, mats, dest);
                 }
             }
+        }
+
+        // ---------------------------------------------------------------- materials
+
+        static MaterialMap LoadMaterialMap()
+        {
+            var map = AssetDatabase.LoadAssetAtPath<MaterialMap>(MaterialMapPath);
+            if (map != null) return map;
+            Directory.CreateDirectory(ExportRoot);
+            map = ScriptableObject.CreateInstance<MaterialMap>();
+            AssetDatabase.CreateAsset(map, MaterialMapPath);
+            return map;
+        }
+
+        static readonly Dictionary<string, Material> Variants = new Dictionary<string, Material>();
+
+        /// <summary>Swap the export's material for the Material Map's, scaled so one repeat covers
+        /// the entry's real size: the export's UVs are metres / uv_tile_m.</summary>
+        static void ApplyMaterials(Transform top, MaterialMap map, JObject nodeUv, Dictionary<string, int> counts)
+        {
+            foreach (var t in top.GetComponentsInChildren<Transform>(true))
+            {
+                var parts = t.name.Split('|');
+                if (parts.Length != 3) continue;
+                string cls = parts[1];
+                counts[cls] = counts.TryGetValue(cls, out int n) ? n + 1 : 1;
+                var e = map.Find(cls);
+                if (e == null || e.material == null) continue;
+                float tile = nodeUv[t.name]?["uv_tile_m"]?.Type == JTokenType.Float ? (float)nodeUv[t.name]["uv_tile_m"] : 0f;
+                float scale = tile > 0f && e.textureSizeM > 0f ? tile / e.textureSizeM : 1f;
+                var mat = Variant(e.material, scale);
+                foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+                {
+                    var mats = r.sharedMaterials;
+                    for (int i = 0; i < mats.Length; i++) mats[i] = mat;
+                    r.sharedMaterials = mats;
+                }
+            }
+        }
+
+        static Material Variant(Material baseMat, float scale)
+        {
+            if (Mathf.Abs(scale - 1f) < 1e-3f) return baseMat;
+            string key = $"{AssetDatabase.GetAssetPath(baseMat)}@{scale:F3}";
+            if (Variants.TryGetValue(key, out var m) && m != null) return m;
+            string folder = ExportRoot + "/MaterialVariants";
+            Directory.CreateDirectory(folder);
+            string path = $"{folder}/{baseMat.name}_x{scale:F3}.mat";
+            m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null)
+            {
+                m = new Material(baseMat) { name = $"{baseMat.name}_x{scale:F3}" };
+                AssetDatabase.CreateAsset(m, path);
+            }
+            m.CopyPropertiesFromMaterial(baseMat);
+            m.mainTextureScale = baseMat.mainTextureScale * scale;
+            m.enableInstancing = true;
+            EditorUtility.SetDirty(m);
+            Variants[key] = m;
+            return m;
         }
 
         // ---------------------------------------------------------------- placements

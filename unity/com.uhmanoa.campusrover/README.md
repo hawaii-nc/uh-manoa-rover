@@ -47,6 +47,17 @@ This package builds the campus scene from `campus-rover build-unity`. The repo s
 
 Models from Google Maps / Street View and Mixamo are not allowed (repo `docs/SCOPE.md` §3a).
 
+## Ground materials
+
+Use `Assets/CampusExport/MaterialMap.asset`. It has one entry per class in the meshes (walkway, road, grass, curb, building, …), most-used first.
+
+1. Set a **Material**, for example a URP Lit material made from a CC0 Poly Haven / ambientCG texture set.
+2. Set **Texture Size M**: the real metres one repeat of the texture covers.
+3. Fill in **Source** and **Licence**.
+4. Run **Re-dress Placements**. It re-imports and applies the materials. The importer scales each one from the export's `node_uv.json`, so a 3 m paving texture stays 3 m.
+
+The dress log lists these materials too.
+
 ## Training looks
 
 Add `CampusRandomizer` to an object, set **Sun** to your directional light, and call `Randomize()` each episode. It varies:

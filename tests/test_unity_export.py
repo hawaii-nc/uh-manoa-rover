@@ -100,3 +100,12 @@ def test_site_file_and_network(export):
     site = json.loads((out / "site.json").read_text())
     assert site["frame"]["z"] == "south" and site["origin_site_xyz"] == list(world.scene.origin)
     assert (out / "network.json").exists()
+
+
+def test_node_uv_scale_matches_the_texture_table(export):
+    _, _, out, _ = export
+    uv = json.loads((out / "node_uv.json").read_text())
+    ground = [n["name"] for n in glb_json(out / "geometry" / "ground.glb")["nodes"]]
+    assert set(ground) <= set(uv)
+    walk = [v for k, v in uv.items() if k.split("|")[1] == "walkway" and v["texture"]]
+    assert walk and all(v["uv_tile_m"] > 0 for v in walk)

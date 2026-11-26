@@ -21,6 +21,7 @@ z south, relative to the site origin in `site.json`):
     network.json               rover network, routes, landmarks (the explorer's data)
     site.json                  CRS, origin, latitude/longitude, time zone, sources
     dress_map.json             kind/key -> count, fallback prototype, chosen model (to fill in)
+    node_uv.json               mesh node -> texture and metres per UV unit (for engine materials)
 """
 from __future__ import annotations
 
@@ -230,6 +231,21 @@ def export_unity(site, world: World, out_dir: Path, progress=lambda m: None,
             continue
         export_glb(scene, geo / name, only=keep, instances=False)
         files[f"geometry/{name}"] = geo / name
+
+    # Texture scale per mesh node: UV units are metres / uv_tile_m, so an engine material that
+    # covers S metres per repeat needs tiling uv_tile_m / S to stay true to size.
+    from .world import texture_info
+
+    tiles = texture_info()
+    uv = {}
+    for key in scene.parts:
+        if key[0] in DRESSED_GROUPS:
+            continue
+        tex = scene.materials[key[2]].get("texture")
+        uv["|".join(key)] = {"texture": tex,
+                             "uv_tile_m": float(tiles[tex]["tile_m"]) if tex in tiles else None}
+    _write(out_dir / "node_uv.json", uv)
+    files["node_uv.json"] = out_dir / "node_uv.json"
 
     placements = [dict(p) for p in scene.placements]
     if world.agents is not None:
